@@ -1,0 +1,62 @@
+// Use DBML to define your database structure
+// Docs: https://dbml.dbdiagram.io/docs
+
+Table client {
+  id integer [primary key]
+  name varchar
+  surname varchar
+  username varchar
+  password varchar
+  last_logged_in timestamp 
+}
+
+Table movies {
+  id integer [primary key]
+  title varchar
+  category varchar
+  year timestamp
+  producer_id varchar
+  director_id integer
+  count integer
+
+}
+
+Table actors {
+  id integer [primary key]
+  name varchar
+  surname varchar
+}
+
+Table direcotrs {
+  id integer [primary key]
+  name varchar
+  surname varchar
+}
+
+Table producers {
+  id integer [primary key]
+  studio_name varchar
+}
+
+Table rents {
+  id integer [primary key]
+  user_id integer
+  movie_id integer
+  start_date timestamp
+  end_dat timestamp
+  price integer
+}
+
+Table movies_actors {
+  actor_id integer
+  movie_id integer
+}
+
+Ref: client.id < rents.user_id // many-to-one
+
+Ref: rents.movie_id > movies.id
+
+Ref: actors.id < movies_actors.actor_id
+Ref: movies.id < movies_actors.movie_id
+Ref: direcotrs.id < movies.director_id
+Ref: producers.id < movies.producer_id
