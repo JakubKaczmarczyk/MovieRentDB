@@ -68,6 +68,31 @@ def register_user(username_entry, password_entry, name_entry, surname_entry, err
     surname_entry.delete(0, tk.END)
     return True
 
+def get_user_reservations(username):
+  try:
+    query = """
+      SELECT m.title, r.start_date, r.end_date, r.price
+      FROM rents r
+      INNER JOIN movies m ON r.movie_id = m.id
+      INNER JOIN client c ON r.user_id = c.id
+      WHERE c.username = ?
+    """
+    cursor.execute(query, (username,))
+
+    reservations = []
+    for row in cursor.fetchall():
+      reservation = {
+          "movie_title": row[0],
+          "start_date": row[1],
+          "end_date": row[2],
+          "price": row[3]
+      }
+      reservations.append(reservation)
+    return reservations
+  except Exception as e:
+    print(f"An error occurred: {e}")
+    return []
+
 class SimpleGUI(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -84,29 +109,37 @@ class SimpleGUI(tk.Tk):
         self.find_movie_screen.withdraw()
 
         self.switch_to_login()
+        self.withdraw()
+        self.protocol("WM_DELETE_WINDOW", self.on_closing)
+        self.logged_user = None
 
     ## Screens ##
     def login_screen_setup(self):
-        self.login_label_username = tk.Label(self, text="Username:")
+        self.login_screen = tk.Toplevel(self)
+        self.login_screen.title("Movie Rental Login")
+        self.login_screen.geometry("300x200")
+
+        self.login_label_username = tk.Label(self.login_screen, text="Username:")
         self.login_label_username.pack()
 
-        self.entry_username = tk.Entry(self)
+        self.entry_username = tk.Entry(self.login_screen)
         self.entry_username.pack()
 
-        self.login_label_password = tk.Label(self, text="Password:")
+        self.login_label_password = tk.Label(self.login_screen, text="Password:")
         self.login_label_password.pack()
 
-        self.entry_password = tk.Entry(self, show="*")
+        self.entry_password = tk.Entry(self.login_screen, show="*")
         self.entry_password.pack()
 
-        self.login_button = tk.Button(self, text="Login", command=self.login_user)
+        self.login_button = tk.Button(self.login_screen, text="Login", command=self.login_user)
         self.login_button.pack()
 
-        self.register_button = tk.Button(self, text="Register", command=self.switch_to_register)
+        self.register_button = tk.Button(self.login_screen, text="Register", command=self.switch_to_register)
         self.register_button.pack()
 
-        self.error_label = tk.Label(self, text="")
+        self.error_label = tk.Label(self.login_screen, text="")
         self.error_label.pack()
+        self.login_screen.protocol("WM_DELETE_WINDOW", self.on_closing)
 
     def register_screen_setup(self):
         self.register_screen = tk.Toplevel(self)
@@ -142,6 +175,7 @@ class SimpleGUI(tk.Tk):
 
         self.back_to_login_button = tk.Button(self.register_screen, text="Back to Login", command=self.switch_to_login)
         self.back_to_login_button.pack()
+        self.register_screen.protocol("WM_DELETE_WINDOW", self.on_closing)
     
     def my_rents_screen_setup(self):
         self.my_rents_screen = tk.Toplevel(self)
@@ -150,6 +184,7 @@ class SimpleGUI(tk.Tk):
 
         self.my_rents_label = tk.Label(self.my_rents_screen, text="My Rents")
         self.my_rents_label.pack()
+        self.my_rents_screen.protocol("WM_DELETE_WINDOW", self.on_closing)
 
     def find_movie_screen_setup(self):
         self.find_movie_screen = tk.Toplevel(self)
@@ -158,6 +193,7 @@ class SimpleGUI(tk.Tk):
 
         self.find_movie_label = tk.Label(self.find_movie_screen, text="Find Movie")
         self.find_movie_label.pack()
+        self.find_movie_screen.protocol("WM_DELETE_WINDOW", self.on_closing)
 
     def main_page_setup(self):
         self.main_page_screen = tk.Toplevel(self)
@@ -169,15 +205,16 @@ class SimpleGUI(tk.Tk):
 
         self.find_movie_button = tk.Button(self.main_page_screen, text="Find Movie", command=self.show_find_movie)
         self.find_movie_button.pack()
+        self.main_page_screen.protocol("WM_DELETE_WINDOW", self.on_closing)
 
     ## Switches ##
     def switch_to_register(self):
-        self.withdraw()
+        self.login_screen.withdraw()
         self.register_screen.deiconify()
 
     def switch_to_login(self):
         self.register_screen.withdraw()
-        self.deiconify()
+        self.login_screen.deiconify()
     
     def show_my_rents(self):
         self.main_page_screen.withdraw()
@@ -188,7 +225,7 @@ class SimpleGUI(tk.Tk):
         self.find_movie_screen.deiconify()
 
     def switch_to_main_page(self):
-        self.withdraw()
+        self.login_screen.withdraw()
         self.main_page_screen.deiconify()
 
     ## Calls ##
@@ -199,6 +236,7 @@ class SimpleGUI(tk.Tk):
 
         result = login_user(username_entry, password_entry, error_label)
         if result:
+            self.logged_user = username_entry.get()
             self.switch_to_main_page()
 
     def register_user(self):
@@ -214,7 +252,19 @@ class SimpleGUI(tk.Tk):
             self.register_screen.withdraw()
             self.switch_to_login()
 
+    def fetch_rents(self):
+        reservations = get_user_reservations(self.logged_user)
+    
+    # Other
+    def on_closing(self):
+        try:
+            conn.close()
+        finally:
+            self.destroy()
+
 
 if __name__ == "__main__":
     app = SimpleGUI()
     app.mainloop()
+
+
