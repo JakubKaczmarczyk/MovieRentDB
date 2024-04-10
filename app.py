@@ -92,12 +92,47 @@ def get_user_reservations(username):
   except Exception as e:
     print(f"An error occurred: {e}")
     return []
+  
+def get_movies():
+    try:
+        cursor.execute("""
+        SELECT m.id, m.title, m.category, m.year, m.producer_id, m.director_id, m.count, 
+            a.id AS actor_id, a.name AS actor_name, a.surname AS actor_surname
+        FROM movies m
+        LEFT JOIN movies_actors ma ON m.id = ma.movie_id
+        LEFT JOIN actors a ON ma.actor_id = a.id
+        ORDER BY m.title
+        """)
+        rows = cursor.fetchall()
+        movies = {}
+        for row in rows:
+            movie_id, title, category, year, producer_id, director_id, count, actor_id, actor_name, actor_surname = row
+            if movie_id not in movies:
+                movies[movie_id] = {
+                    "id": movie_id,
+                    "title": title,
+                    "category": category,
+                    "year": year,
+                    "producer_id": producer_id,
+                    "director_id": director_id,
+                    "count": count,
+                    "actors": []
+                }
+            if actor_id:
+                movies[movie_id]["actors"].append({"id": actor_id, "name": actor_name, "surname": actor_surname})
+        movie_list = list(movies.values())
+        return movie_list
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return []
 
 class SimpleGUI(tk.Tk):
     def __init__(self):
         super().__init__()
+        self.width = 1200
+        self.height = 600
         self.title("Movie Rental")
-        self.geometry("300x200")
+        self.geometry(f"{self.width}x{self.height}+0+0")
 
         self.login_screen_setup()
         self.register_screen_setup()
@@ -117,7 +152,7 @@ class SimpleGUI(tk.Tk):
     def login_screen_setup(self):
         self.login_screen = tk.Toplevel(self)
         self.login_screen.title("Movie Rental Login")
-        self.login_screen.geometry("300x200")
+        self.login_screen.geometry(f"{self.width}x{self.height}+0+0")
 
         self.login_label_username = tk.Label(self.login_screen, text="Username:")
         self.login_label_username.pack()
@@ -144,7 +179,7 @@ class SimpleGUI(tk.Tk):
     def register_screen_setup(self):
         self.register_screen = tk.Toplevel(self)
         self.register_screen.title("Movie Rental Register")
-        self.register_screen.geometry("300x200")
+        self.register_screen.geometry(f"{self.width}x{self.height}+0+0")
 
         self.register_label_username = tk.Label(self.register_screen, text="Username:")
         self.register_label_username.pack()
@@ -180,7 +215,10 @@ class SimpleGUI(tk.Tk):
     def my_rents_screen_setup(self):
         self.my_rents_screen = tk.Toplevel(self)
         self.my_rents_screen.title("My Rents")
-        self.my_rents_screen.geometry("300x200")
+        self.my_rents_screen.geometry(f"{self.width}x{self.height}+0+0")
+
+        self.back_to_main_button = tk.Button(self.my_rents_screen, text="Back to Main Page", command=self.switch_to_main_page)
+        self.back_to_main_button.pack()
 
         self.my_rents_label = tk.Label(self.my_rents_screen, text="My Rents")
         self.my_rents_label.pack()
@@ -189,7 +227,10 @@ class SimpleGUI(tk.Tk):
     def find_movie_screen_setup(self):
         self.find_movie_screen = tk.Toplevel(self)
         self.find_movie_screen.title("Find Movie")
-        self.find_movie_screen.geometry("300x200")
+        self.find_movie_screen.geometry(f"{self.width}x{self.height}+0+0")
+
+        self.back_to_main_button = tk.Button(self.find_movie_screen, text="Back to Main Page", command=self.switch_to_main_page)
+        self.back_to_main_button.pack()
 
         self.find_movie_label = tk.Label(self.find_movie_screen, text="Find Movie")
         self.find_movie_label.pack()
@@ -198,7 +239,7 @@ class SimpleGUI(tk.Tk):
     def main_page_setup(self):
         self.main_page_screen = tk.Toplevel(self)
         self.main_page_screen.title("Main Page")
-        self.main_page_screen.geometry("300x200")
+        self.main_page_screen.geometry(f"{self.width}x{self.height}+0+0")
 
         self.my_rents_button = tk.Button(self.main_page_screen, text="My Rents", command=self.show_my_rents)
         self.my_rents_button.pack()
@@ -209,24 +250,44 @@ class SimpleGUI(tk.Tk):
 
     ## Switches ##
     def switch_to_register(self):
-        self.login_screen.withdraw()
+        self.close_all_windows()
         self.register_screen.deiconify()
 
     def switch_to_login(self):
-        self.register_screen.withdraw()
+        self.close_all_windows()
         self.login_screen.deiconify()
     
     def show_my_rents(self):
-        self.main_page_screen.withdraw()
+        self.close_all_windows()
         self.my_rents_screen.deiconify()
+        for widget in self.my_rents_screen.winfo_children():
+            if widget.cget("text") != "Back to Main Page":
+                widget.destroy()
+        self.fetch_rents()
 
     def show_find_movie(self):
-        self.main_page_screen.withdraw()
+        self.close_all_windows()
         self.find_movie_screen.deiconify()
+        for widget in self.find_movie_screen.winfo_children():
+            if widget.cget("text") != "Back to Main Page":
+                widget.destroy()
+        self.fetch_movies()
 
     def switch_to_main_page(self):
-        self.login_screen.withdraw()
+        self.close_all_windows()
         self.main_page_screen.deiconify()
+
+    def close_all_windows(self):
+        if self.login_screen.winfo_exists():
+            self.login_screen.withdraw()
+        if self.register_screen.winfo_exists():
+            self.register_screen.withdraw()
+        if self.main_page_screen.winfo_exists():
+            self.main_page_screen.withdraw()
+        if self.find_movie_screen.winfo_exists():
+            self.find_movie_screen.withdraw()
+        if self.my_rents_screen.winfo_exists():
+            self.my_rents_screen.withdraw()
 
     ## Calls ##
     def login_user(self):
@@ -254,7 +315,24 @@ class SimpleGUI(tk.Tk):
 
     def fetch_rents(self):
         reservations = get_user_reservations(self.logged_user)
+        if reservations:
+            for i, reservation in enumerate(reservations):
+                label_text = f"Movie: {reservation['movie_title']} | Start Date: {reservation['start_date']} | End Date: {reservation['end_date']} | Price: {reservation['price']}"
+                tk.Label(self.my_rents_screen, text=label_text).pack()
+        else:
+            tk.Label(self.my_rents_screen, text="No reservations found.").pack()
     
+    def fetch_movies(self):
+        movies = get_movies()
+        if movies:
+            for i, movie in enumerate(movies):
+                label_text = f"Title: {movie['title']} | Category: {movie['category']} | Year: {movie['year']} | Actors: "
+                actors_text = ", ".join([f"{actor['name']} {actor['surname']}" for actor in movie['actors']])
+                label_text += actors_text
+                tk.Label(self.find_movie_screen, text=label_text).pack()
+        else:
+            tk.Label(self.find_movie_screen, text="No movies found.").pack()
+
     # Other
     def on_closing(self):
         try:
