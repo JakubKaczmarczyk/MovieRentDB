@@ -1,4 +1,7 @@
+import json
 import sqlite3
+
+import bcrypt
 
 # Connect to the database (or create it if it doesn't exist)
 conn = sqlite3.connect("movie_rental.db")
@@ -76,6 +79,17 @@ CREATE TABLE IF NOT EXISTS movies_actors (
    FOREIGN KEY (movie_id) REFERENCES movies(id)
 )
 """)
+
+
+with open("raw_data.json", "r") as f:
+   data = json.load(f)
+   for client in data["client"]:
+        hashed_password = bcrypt.hashpw(b"1234", bcrypt.gensalt())
+        cursor.execute("""
+            INSERT INTO client (name, surname, username, password)
+            VALUES (?, ?, ?, ?)
+        """, (client["first_name"], client["last_name"], client["username"], hashed_password))
+
 
 # Commit the changes and close the connection
 conn.commit()

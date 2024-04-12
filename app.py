@@ -2,7 +2,6 @@ import tkinter as tk
 import sqlite3
 import bcrypt
 
-# Database connection (replace with your database path)
 conn = sqlite3.connect("movie_rental.db")
 cursor = conn.cursor()
 
@@ -10,7 +9,7 @@ cursor = conn.cursor()
 def login_user(username_entry, password_entry, error_label):
     username = username_entry.get()
     password = password_entry.get()
-    password= password.encode('utf-8')
+    password = password.encode("utf-8")
 
     if not username:
         error_label.config(text="Username cannot be empty")
@@ -20,10 +19,7 @@ def login_user(username_entry, password_entry, error_label):
         error_label.config(text="Password cannot be empty")
         return False
 
-    cursor.execute(
-        "SELECT * FROM client WHERE username = ?",
-        (username,)
-    )
+    cursor.execute("SELECT * FROM client WHERE username = ?", (username,))
     user = cursor.fetchone()
 
     if user:
@@ -37,7 +33,10 @@ def login_user(username_entry, password_entry, error_label):
         error_label.config(text="Invalid username or password")
         return False
 
-def register_user(username_entry, password_entry, name_entry, surname_entry, error_label):
+
+def register_user(
+    username_entry, password_entry, name_entry, surname_entry, error_label
+):
     username = username_entry.get()
     password = password_entry.get()
     name = name_entry.get()
@@ -54,7 +53,7 @@ def register_user(username_entry, password_entry, name_entry, surname_entry, err
     if not name:
         error_label.config(text="Name cannot be empty")
         return False
-    
+
     if not surname:
         error_label.config(text="Surname cannot be empty")
         return False
@@ -64,9 +63,10 @@ def register_user(username_entry, password_entry, name_entry, surname_entry, err
         error_label.config(text="Username already exists")
         return False
 
-    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+    hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
     cursor.execute(
-        'INSERT INTO client (username, password, name, surname, last_logged_in) VALUES (?,?,?,?,?)', (username, hashed_password, name, surname, None)
+        "INSERT INTO client (username, password, name, surname, last_logged_in) VALUES (?,?,?,?,?)",
+        (username, hashed_password, name, surname, None),
     )
     conn.commit()
     username_entry.delete(0, tk.END)
@@ -75,45 +75,60 @@ def register_user(username_entry, password_entry, name_entry, surname_entry, err
     surname_entry.delete(0, tk.END)
     return True
 
+
 def get_user_reservations(username):
-  try:
-    query = """
+    try:
+        query = """
       SELECT m.title, r.start_date, r.end_date, r.price
       FROM rents r
       INNER JOIN movies m ON r.movie_id = m.id
       INNER JOIN client c ON r.user_id = c.id
       WHERE c.username = ?
     """
-    cursor.execute(query, (username,))
+        cursor.execute(query, (username,))
 
-    reservations = []
-    for row in cursor.fetchall():
-      reservation = {
-          "movie_title": row[0],
-          "start_date": row[1],
-          "end_date": row[2],
-          "price": row[3]
-      }
-      reservations.append(reservation)
-    return reservations
-  except Exception as e:
-    print(f"An error occurred: {e}")
-    return []
-  
+        reservations = []
+        for row in cursor.fetchall():
+            reservation = {
+                "movie_title": row[0],
+                "start_date": row[1],
+                "end_date": row[2],
+                "price": row[3],
+            }
+            reservations.append(reservation)
+        return reservations
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return []
+
+
 def get_movies():
     try:
-        cursor.execute("""
+        cursor.execute(
+            """
         SELECT m.id, m.title, m.category, m.year, m.producer_id, m.director_id, m.count, 
             a.id AS actor_id, a.name AS actor_name, a.surname AS actor_surname
         FROM movies m
         LEFT JOIN movies_actors ma ON m.id = ma.movie_id
         LEFT JOIN actors a ON ma.actor_id = a.id
         ORDER BY m.title
-        """)
+        """
+        )
         rows = cursor.fetchall()
         movies = {}
         for row in rows:
-            movie_id, title, category, year, producer_id, director_id, count, actor_id, actor_name, actor_surname = row
+            (
+                movie_id,
+                title,
+                category,
+                year,
+                producer_id,
+                director_id,
+                count,
+                actor_id,
+                actor_name,
+                actor_surname,
+            ) = row
             if movie_id not in movies:
                 movies[movie_id] = {
                     "id": movie_id,
@@ -123,15 +138,18 @@ def get_movies():
                     "producer_id": producer_id,
                     "director_id": director_id,
                     "count": count,
-                    "actors": []
+                    "actors": [],
                 }
             if actor_id:
-                movies[movie_id]["actors"].append({"id": actor_id, "name": actor_name, "surname": actor_surname})
+                movies[movie_id]["actors"].append(
+                    {"id": actor_id, "name": actor_name, "surname": actor_surname}
+                )
         movie_list = list(movies.values())
         return movie_list
     except Exception as e:
         print(f"An error occurred: {e}")
         return []
+
 
 class SimpleGUI(tk.Tk):
     def __init__(self):
@@ -141,7 +159,7 @@ class SimpleGUI(tk.Tk):
         self.screen_height = self.winfo_screenheight()
 
         self.geometry(f"{self.screen_width}x{self.screen_height}+0+0")
-        self.state('zoomed')
+        self.state("zoomed")
 
         self.login_screen_setup()
         self.register_screen_setup()
@@ -172,7 +190,9 @@ class SimpleGUI(tk.Tk):
         self.login_button = tk.Button(self, text="Login", command=self.login_user)
         self.login_button.pack()
 
-        self.register_button = tk.Button(self, text="Register", command=self.switch_to_register)
+        self.register_button = tk.Button(
+            self, text="Register", command=self.switch_to_register
+        )
         self.register_button.pack()
 
         self.error_label = tk.Label(self, text="")
@@ -206,16 +226,22 @@ class SimpleGUI(tk.Tk):
         self.register_entry_surname = tk.Entry(self)
         self.register_entry_surname.pack()
 
-        self.register_button = tk.Button(self, text="Register", command=self.register_user)
+        self.register_button = tk.Button(
+            self, text="Register", command=self.register_user
+        )
         self.register_button.pack()
 
-        self.back_to_login_button = tk.Button(self, text="Back to Login", command=self.switch_to_login)
+        self.back_to_login_button = tk.Button(
+            self, text="Back to Login", command=self.switch_to_login
+        )
         self.back_to_login_button.pack()
-    
+
     def my_rents_screen_setup(self):
         self.title("My Rents")
 
-        self.back_to_main_button = tk.Button(self, text="Back to Main Page", command=self.switch_to_main_page)
+        self.back_to_main_button = tk.Button(
+            self, text="Back to Main Page", command=self.switch_to_main_page
+        )
         self.back_to_main_button.pack()
 
         self.my_rents_label = tk.Label(self, text="My Rents")
@@ -224,7 +250,9 @@ class SimpleGUI(tk.Tk):
     def find_movie_screen_setup(self):
         self.title("Find Movie")
 
-        self.back_to_main_button = tk.Button(self, text="Back to Main Page", command=self.switch_to_main_page)
+        self.back_to_main_button = tk.Button(
+            self, text="Back to Main Page", command=self.switch_to_main_page
+        )
         self.back_to_main_button.pack()
 
         self.find_movie_label = tk.Label(self, text="Find Movie")
@@ -233,10 +261,14 @@ class SimpleGUI(tk.Tk):
     def main_page_setup(self):
         self.title("Main Page")
 
-        self.my_rents_button = tk.Button(self, text="My Rents", command=self.switch_to_my_rents)
+        self.my_rents_button = tk.Button(
+            self, text="My Rents", command=self.switch_to_my_rents
+        )
         self.my_rents_button.pack()
 
-        self.find_movie_button = tk.Button(self, text="Find Movie", command=self.switch_to_find_movie)
+        self.find_movie_button = tk.Button(
+            self, text="Find Movie", command=self.switch_to_find_movie
+        )
         self.find_movie_button.pack()
 
     ## Switches ##
@@ -247,7 +279,7 @@ class SimpleGUI(tk.Tk):
     def switch_to_login(self):
         self.close_all_windows()
         self.login_screen_setup()
-    
+
     def switch_to_my_rents(self):
         self.close_all_windows()
         self.my_rents_screen_setup()
@@ -265,7 +297,6 @@ class SimpleGUI(tk.Tk):
     def close_all_windows(self):
         for widget in self.winfo_children():
             widget.destroy()
-
 
     ## Calls ##
     def login_user(self):
@@ -285,7 +316,9 @@ class SimpleGUI(tk.Tk):
         surname_entry = self.register_entry_surname
         error_label = self.error_label
 
-        result = register_user(username_entry, password_entry, name_entry, surname_entry, error_label)
+        result = register_user(
+            username_entry, password_entry, name_entry, surname_entry, error_label
+        )
         if result:
             self.switch_to_login()
 
@@ -297,13 +330,15 @@ class SimpleGUI(tk.Tk):
                 tk.Label(self, text=label_text).pack()
         else:
             tk.Label(self, text="No reservations found.").pack()
-    
+
     def fetch_movies(self):
         movies = get_movies()
         if movies:
             for i, movie in enumerate(movies):
                 label_text = f"Title: {movie['title']} | Category: {movie['category']} | Year: {movie['year']} | Actors: "
-                actors_text = ", ".join([f"{actor['name']} {actor['surname']}" for actor in movie['actors']])
+                actors_text = ", ".join(
+                    [f"{actor['name']} {actor['surname']}" for actor in movie["actors"]]
+                )
                 label_text += actors_text
                 tk.Label(self, text=label_text).pack()
         else:
@@ -320,5 +355,3 @@ class SimpleGUI(tk.Tk):
 if __name__ == "__main__":
     app = SimpleGUI()
     app.mainloop()
-
-
