@@ -13,7 +13,6 @@ Table client {
 Table movies {
   id integer [primary key]
   title varchar
-  category varchar
   year timestamp
   producer_id varchar
   director_id integer
@@ -40,7 +39,7 @@ Table producers {
 
 Table rents {
   id integer [primary key]
-  user_id integer
+  client_id integer
   movie_id integer
   start_date timestamp
   end_dat timestamp
@@ -52,11 +51,23 @@ Table movies_actors {
   movie_id integer
 }
 
-Ref: client.id < rents.user_id // many-to-one
+Table genres {
+  id integer [primary key]
+  name varchar
+}
 
+Table movie_genres {
+  movie_id integer
+  genre_id integer
+}
+
+Ref: client.id < rents.client_id
 Ref: rents.movie_id > movies.id
 
 Ref: actors.id < movies_actors.actor_id
 Ref: movies.id < movies_actors.movie_id
 Ref: direcotrs.id < movies.director_id
 Ref: producers.id < movies.producer_id
+
+Ref: movies.id < movie_genres.movie_id
+Ref: genres.id < movie_genres.genre_id
