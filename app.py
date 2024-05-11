@@ -101,21 +101,17 @@ def register_user(
         (username, hashed_password, name, surname, None),
     )
     conn.commit()
-    username_entry.delete(0, tk.END)
-    password_entry.delete(0, tk.END)
-    name_entry.delete(0, tk.END)
-    surname_entry.delete(0, tk.END)
     return True
 
 
 def get_user_reservations(username):
     try:
         query = """
-      SELECT m.title, r.start_date, r.end_date, r.price, c.name, c.surname
+      SELECT m.title, r.start_date, r.end_date, r.price, c.name, c.surname, r.id
       FROM rent r
       INNER JOIN movie m ON r.movie_id = m.id
       INNER JOIN client c ON r.client_id = c.id
-      WHERE c.username = ?
+      WHERE c.username = ? AND r.is_active = 1
     """
         cursor.execute(query, (username,))
 
@@ -127,7 +123,8 @@ def get_user_reservations(username):
                 "end_date": row[2],
                 "price": row[3],
                 "name": row[4],
-                "surname": row[5]
+                "surname": row[5],
+                "id": row[6]
             }
             reservations.append(reservation)
         return reservations
@@ -218,6 +215,16 @@ def rent_movie(
     cursor.execute("UPDATE movie SET count = count - 1 WHERE id = ?", (movie_id,))
     conn.commit()
     return True
+
+def finish_selected_rents(user_rents):
+    try:
+        for rent in user_rents:
+            rent_id = rent.get("id")
+            if rent_id is not None:
+                cursor.execute("UPDATE rent SET is_active = ? WHERE id = ?", (False, rent_id))
+                conn.commit()
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 class SimpleGUI(tk.Tk):
     def __init__(self):
@@ -456,6 +463,10 @@ class SimpleGUI(tk.Tk):
             username, password, name, surname, error_label
         )
         if result:
+            self.username_entry.delete(0, tk.END)
+            self.password_entry.delete(0, tk.END)
+            self.name_entry.delete(0, tk.END)
+            self.surname_entry.delete(0, tk.END)
             self.switch_to_login()
 
     def fetch_rents(self):
@@ -544,15 +555,17 @@ class SimpleGUI(tk.Tk):
 
     def fetch_rents_by_username(self, username):
         self.switch_to_finish_rent()
-        users_rents = get_user_reservations(username)
-        listbox = tk.Listbox(self, selectmode=tk.MULTIPLE, width=1000, height=600)
-        if users_rents:
+        self.users_rents = get_user_reservations(username)
+        self.finish_rent_button = tk.Button(self, text="Finish Selected Rents", command=self.finish_rent_action)
+        self.finish_rent_button.pack()
+        self.listbox = tk.Listbox(self, selectmode=tk.MULTIPLE, width=1000, height=600)
+        if self.users_rents:
             columns = ["Name", "Surname", "Movie Title", "Start Date", "End Date", "Price", "Delayed"]
             header = "{:<50} | {:<50} | {:<100} | {:<50} | {:<50} | {:<5} | {:<15}".format(*columns)
-            listbox.insert(tk.END, header)
-            listbox.insert(tk.END, "-" * len(header))
+            self.listbox.insert(tk.END, header)
+            self.listbox.insert(tk.END, "-" * len(header))
 
-            for rent in users_rents:
+            for rent in self.users_rents:
                 name = rent['name']
                 surname = rent['surname']
                 start_date = rent['start_date']
@@ -566,16 +579,23 @@ class SimpleGUI(tk.Tk):
                 else:
                     delayed = "On time"
                 row = "{:<50} | {:<50} | {:<100} | {:<50} | {:<50} | {:<5} | {:<15}".format(name, surname, title, start_date, end_date, price, delayed)
-                listbox.insert(tk.END, row)
+                self.listbox.insert(tk.END, row)
         else:
-            listbox.insert(tk.END, "No rents found.")
-        listbox.pack()
+            self.listbox.insert(tk.END, "No rents found.")
+        self.listbox.pack()
+        
 
     # Other
     def select_movies_to_create_rent(self):
         selected_indices = self.listbox.curselection()
         selected_movies = [self.movies[i-2] for i in selected_indices]
         self.switch_to_create_rent(selected_movies)
+
+    def finish_rent_action(self):
+        selected_indices = self.listbox.curselection()
+        selected_rents = [self.users_rents[i-2] for i in selected_indices]
+        finish_selected_rents(selected_rents)
+
 
     def on_closing(self):
         try:

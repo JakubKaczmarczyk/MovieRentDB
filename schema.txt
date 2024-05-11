@@ -10,7 +10,7 @@ Table client {
   last_logged_in timestamp 
 }
 
-Table movies {
+Table movie {
   id integer [primary key]
   title varchar
   year timestamp
@@ -20,54 +20,64 @@ Table movies {
 
 }
 
-Table actors {
+Table actor {
   id integer [primary key]
   name varchar
   surname varchar
 }
 
-Table direcotrs {
+Table director {
   id integer [primary key]
   name varchar
   surname varchar
 }
 
-Table producers {
+Table producer {
   id integer [primary key]
   studio_name varchar
 }
 
-Table rents {
+Table rent {
   id integer [primary key]
   client_id integer
   movie_id integer
   start_date timestamp
   end_dat timestamp
   price integer
+  is_active boolean
 }
 
-Table movies_actors {
+Table movie_actor {
   actor_id integer
   movie_id integer
 }
 
-Table genres {
+Table genre {
   id integer [primary key]
   name varchar
 }
 
-Table movie_genres {
-  movie_id integer
+Table movie_genre {
   genre_id integer
+  movie_id integer
 }
 
-Ref: client.id < rents.client_id
-Ref: rents.movie_id > movies.id
+Table activity_logs {
+  id int [primary key]
+  client_id integer
+  activity varchar
+  login_date timestamp
+}
 
-Ref: actors.id < movies_actors.actor_id
-Ref: movies.id < movies_actors.movie_id
-Ref: direcotrs.id < movies.director_id
-Ref: producers.id < movies.producer_id
+Ref: client.id < rent.client_id // many-to-one
 
-Ref: movies.id < movie_genres.movie_id
-Ref: genres.id < movie_genres.genre_id
+Ref: rent.movie_id > movie.id
+
+Ref: actor.id < movie_actor.actor_id
+Ref: movie.id < movie_actor.movie_id
+Ref: director.id < movie.director_id
+Ref: producer.id < movie.producer_id
+
+Ref: movie.id < movie_genre.movie_id
+Ref: genre.id < movie_genre.genre_id
+Ref: activity_logs.client_id > client.id

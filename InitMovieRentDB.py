@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS rent (
    start_date TIMESTAMP,
    end_date TIMESTAMP,
    price INTEGER,
+   is_active BOOLEAN,
    FOREIGN KEY (client_id) REFERENCES client(id),
    FOREIGN KEY (movie_id) REFERENCES movies(id)
 )
@@ -271,13 +272,14 @@ for rental in data["rent"]:
     price_multiplier = random.randint(1, 5)  # Random multiplier for price
     # price = days_rented * price_multiplier
     price = days_rented * 2
+    is_active = True
 
     cursor.execute(
         """
-      INSERT INTO rent (client_id, movie_id, start_date, end_date, price)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO rent (client_id, movie_id, start_date, end_date, price, is_active)
+      VALUES (?, ?, ?, ?, ?, ?)
    """,
-        (client_id, movie_id, start_time, end_time, price),
+        (client_id, movie_id, start_time, end_time, price, is_active),
     )
 
 
