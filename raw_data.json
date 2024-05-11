@@ -1,16 +1,16 @@
 {
 "client": [
-    {"name":"Penny","surname":"Howis","username":"phowis0","last_logged_in":"8/10/2023"},
-    {"name":"Otis","surname":"Karpmann","username":"okarpmann1","last_logged_in":"2/6/2024"},
-    {"name":"Desirae","surname":"Conrath","username":"dconrath2","last_logged_in":"4/23/2023"},
-    {"name":"Gordy","surname":"Heild","username":"gheild3","last_logged_in":"1/9/2024"},
-    {"name":"Christin","surname":"Guion","username":"cguion4","last_logged_in":"2/28/2024"},
-    {"name":"Koo","surname":"Wigin","username":"kwigin5","last_logged_in":"3/30/2024"},
-    {"name":"Jackson","surname":"Lomath","username":"jlomath6","last_logged_in":"7/26/2023"},
-    {"name":"Hank","surname":"Iozefovich","username":"hiozefovich7","last_logged_in":"7/30/2023"},
-    {"name":"Morton","surname":"Eacott","username":"meacott8","last_logged_in":"1/30/2024"},
-    {"name":"Lilah","surname":"Aulsford","username":"laulsford9","last_logged_in":"4/15/2023"},
-    {"name":"Kuba","surname":"Kaczmarczyk","username":"Kuba1234","last_logged_in":"1/11/2022"}
+    {"name":"Penny","surname":"Howis","username":"phowis0","role":"user","last_logged_in":"8/10/2023"},
+    {"name":"Otis","surname":"Karpmann","username":"okarpmann1","role":"user","last_logged_in":"2/6/2024"},
+    {"name":"Desirae","surname":"Conrath","username":"dconrath2","role":"user","last_logged_in":"4/23/2023"},
+    {"name":"Gordy","surname":"Heild","username":"gheild3","role":"user","last_logged_in":"1/9/2024"},
+    {"name":"Christin","surname":"Guion","username":"cguion4","role":"user","last_logged_in":"2/28/2024"},
+    {"name":"Koo","surname":"Wigin","username":"kwigin5","role":"user","last_logged_in":"3/30/2024"},
+    {"name":"Jackson","surname":"Lomath","username":"jlomath6","role":"user","last_logged_in":"7/26/2023"},
+    {"name":"Hank","surname":"Iozefovich","username":"hiozefovich7","role":"user","last_logged_in":"7/30/2023"},
+    {"name":"Morton","surname":"Eacott","username":"meacott8","role":"user","last_logged_in":"1/30/2024"},
+    {"name":"Lilah","surname":"Aulsford","username":"laulsford9","role":"user","last_logged_in":"4/15/2023"},
+    {"name":"Kuba","surname":"Kaczmarczyk","username":"Kuba1234","role":"admin","last_logged_in":"1/11/2022"}
 ],
 "director": [
     {"name":"Glynnis","surname":"Biasioli"},
@@ -578,7 +578,7 @@
     {"title":"Wolfsburg","year":2005,"count":4},
     {"title":"Beverly Hills Cop","year":1992,"count":39},
     {"title":"Kings of Mykonos, The","year":2006,"count":26},
-    {"title":"4.3.2.1","year":1993,"count":98},
+    {"title":"4.3.2.1","year":1993,"count":1},
     {"title":"Paul","year":2002,"count":81},
     {"title":"Cause for Alarm!","year":2007,"count":0},
     {"title":"Dark Shadows","year":2004,"count":80},

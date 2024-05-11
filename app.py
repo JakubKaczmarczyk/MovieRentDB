@@ -12,9 +12,7 @@ conn = sqlite3.connect("movie_rental.db")
 cursor = conn.cursor()
 
 
-def login_user(username_entry, password_entry, error_label):
-    username = username_entry.get()
-    password = password_entry.get()
+def login_user(username, password, error_label):
     password = password.encode("utf-8")
 
     if not username:
@@ -33,7 +31,7 @@ def login_user(username_entry, password_entry, error_label):
         if bcrypt.checkpw(password, stored_password):
             try:
                 current_timestamp = datetime.now()
-                cursor.execute("INSERT INTO login_logs (client_id, activity_type, login_date) VALUES (?, ?, ?)", (user[0], 'login', current_timestamp))
+                cursor.execute("INSERT INTO activity_logs (client_id, activity_type, login_date) VALUES (?, ?, ?)", (user[0], 'login', current_timestamp))
                 conn.commit()
             except Exception as e:
                 print("Error logging login information:", e)
@@ -45,15 +43,37 @@ def login_user(username_entry, password_entry, error_label):
         error_label.config(text="Invalid username or password")
         return False
 
+def is_user_admin(username, password, error_label):
+    password = password.encode("utf-8")
+
+    if not username:
+        error_label.config(text="Username cannot be empty")
+        return False
+
+    if not password:
+        error_label.config(text="Password cannot be empty")
+        return False
+
+    cursor.execute("SELECT * FROM client WHERE username = ?", (username,))
+    user = cursor.fetchone()
+
+    if user:
+        stored_password = user[4]
+        if bcrypt.checkpw(password, stored_password):
+            if user[5] == "admin":
+                return True
+            else:
+                return False
+        else:
+            error_label.config(text="Invalid username or password")
+            return False
+    else:
+        error_label.config(text="Invalid username or password")
+        return False
 
 def register_user(
-    username_entry, password_entry, name_entry, surname_entry, error_label
+    username, password, name, surname, error_label
 ):
-    username = username_entry.get()
-    password = password_entry.get()
-    name = name_entry.get()
-    surname = surname_entry.get()
-
     if not username:
         error_label.config(text="Username cannot be empty")
         return False
@@ -91,7 +111,7 @@ def register_user(
 def get_user_reservations(username):
     try:
         query = """
-      SELECT m.title, r.start_date, r.end_date, r.price
+      SELECT m.title, r.start_date, r.end_date, r.price, c.name, c.surname
       FROM rent r
       INNER JOIN movie m ON r.movie_id = m.id
       INNER JOIN client c ON r.client_id = c.id
@@ -106,6 +126,8 @@ def get_user_reservations(username):
                 "start_date": row[1],
                 "end_date": row[2],
                 "price": row[3],
+                "name": row[4],
+                "surname": row[5]
             }
             reservations.append(reservation)
         return reservations
@@ -207,15 +229,10 @@ class SimpleGUI(tk.Tk):
         self.geometry(f"{self.screen_width}x{self.screen_height}+0+0")
         self.state("zoomed")
 
-        self.login_screen_setup()
-        self.register_screen_setup()
-        self.my_rents_screen_setup()
-        self.find_movie_screen_setup()
-        self.main_page_setup()
-
         self.switch_to_login()
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
         self.logged_user = None
+        self.admin_logged_in = False
 
     ## Screens ##
     def login_screen_setup(self):
@@ -323,6 +340,34 @@ class SimpleGUI(tk.Tk):
         )
         self.back_to_main_button.pack()
 
+    def finish_rent_search_setup(self):
+        self.title("Finish Rent")
+        self.logout_button = tk.Button(
+            self, text="Logout", command=self.logout
+        )
+        self.logout_button.pack()
+        self.back_to_main_button = tk.Button(
+            self, text="Back to Main Page", command=self.switch_to_main_page
+        )
+        self.back_to_main_button.pack()
+        self.label_find_username = tk.Label(self, text="Username:")
+        self.label_find_username.pack()
+        self.entry_username = tk.Entry()
+        self.entry_username.pack()
+        self.fetch_rents_by_username_button = tk.Button(self, text="Find reservations", command=lambda: self.fetch_rents_by_username(self.entry_username.get()))
+        self.fetch_rents_by_username_button.pack()
+
+    def finish_rent_setup(self):
+        self.title("Finish Rent")
+        self.logout_button = tk.Button(
+            self, text="Logout", command=self.logout
+        )
+        self.logout_button.pack()
+        self.back_to_main_button = tk.Button(
+            self, text="Back to Main Page", command=self.switch_to_main_page
+        )
+        self.back_to_main_button.pack()
+
 
     def main_page_setup(self):
         self.title("Main Page")
@@ -340,6 +385,11 @@ class SimpleGUI(tk.Tk):
             self, text="Find Movie", command=self.switch_to_find_movie
         )
         self.find_movie_button.pack()
+        if self.admin_logged_in:
+            self.finish_rent_button = tk.Button(
+            self, text="Finish Rent", command=self.switch_to_finish_rent_search
+            )
+            self.finish_rent_button.pack()
 
     ## Switches ##
     def switch_to_register(self):
@@ -364,6 +414,14 @@ class SimpleGUI(tk.Tk):
         self.close_all_windows()
         self.main_page_setup()
 
+    def switch_to_finish_rent_search(self):
+        self.close_all_windows()
+        self.finish_rent_search_setup()
+
+    def switch_to_finish_rent(self):
+        self.close_all_windows()
+        self.finish_rent_setup()
+
     def switch_to_create_rent(self, selected_movies):
         self.close_all_windows()
         self.create_rent_setup()
@@ -375,24 +433,27 @@ class SimpleGUI(tk.Tk):
 
     ## Calls ##
     def login_user(self):
-        username_entry = self.entry_username
-        password_entry = self.entry_password
+        username = self.entry_username.get()
+        password = self.entry_password.get()
         error_label = self.error_label
 
-        result = login_user(username_entry, password_entry, error_label)
+        result = login_user(username, password, error_label)
         if result:
-            self.logged_user = username_entry.get()
+            self.logged_user = username
+            self.admin_logged_in =  is_user_admin(username, password, error_label)
             self.switch_to_main_page()
+            
 
     def register_user(self):
-        username_entry = self.register_entry_username
-        password_entry = self.register_entry_password
-        name_entry = self.register_entry_name
-        surname_entry = self.register_entry_surname
+        username = self.register_entry_username.get()
+        password = self.register_entry_password.get()
+        name = self.register_entry_name.get()
+        surname = self.register_entry_surname.get()
+
         error_label = self.error_label
 
         result = register_user(
-            username_entry, password_entry, name_entry, surname_entry, error_label
+            username, password, name, surname, error_label
         )
         if result:
             self.switch_to_login()
@@ -481,6 +542,35 @@ class SimpleGUI(tk.Tk):
             rent_movie(username, movie_id, formatted_start_date, formatted_end_date, price)
         self.switch_to_my_rents()
 
+    def fetch_rents_by_username(self, username):
+        self.switch_to_finish_rent()
+        users_rents = get_user_reservations(username)
+        listbox = tk.Listbox(self, selectmode=tk.MULTIPLE, width=1000, height=600)
+        if users_rents:
+            columns = ["Name", "Surname", "Movie Title", "Start Date", "End Date", "Price", "Delayed"]
+            header = "{:<50} | {:<50} | {:<100} | {:<50} | {:<50} | {:<5} | {:<15}".format(*columns)
+            listbox.insert(tk.END, header)
+            listbox.insert(tk.END, "-" * len(header))
+
+            for rent in users_rents:
+                name = rent['name']
+                surname = rent['surname']
+                start_date = rent['start_date']
+                end_date = rent['end_date']
+                title = rent['movie_title']
+                price = rent['price']
+                end_datetime = datetime.strptime(end_date, '%Y-%m-%d %H:%M:%S')
+                current_datetime = datetime.now()
+                if end_datetime < current_datetime:
+                    delayed = "Delayed"
+                else:
+                    delayed = "On time"
+                row = "{:<50} | {:<50} | {:<100} | {:<50} | {:<50} | {:<5} | {:<15}".format(name, surname, title, start_date, end_date, price, delayed)
+                listbox.insert(tk.END, row)
+        else:
+            listbox.insert(tk.END, "No rents found.")
+        listbox.pack()
+
     # Other
     def select_movies_to_create_rent(self):
         selected_indices = self.listbox.curselection()
@@ -495,7 +585,6 @@ class SimpleGUI(tk.Tk):
 
     def logout(self):
         try:
-            conn.close()
             self.logged_user = None
         finally:
             self.switch_to_login()

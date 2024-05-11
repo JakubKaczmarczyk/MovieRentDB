@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS client (
    surname VARCHAR,
    username VARCHAR,
    password VARCHAR,
+   role VARCHAR,
    last_logged_in TIMESTAMP
 )
 """
@@ -171,14 +172,15 @@ with open("raw_data.json", "r") as f:
         hashed_password = bcrypt.hashpw(b"1234", bcrypt.gensalt())
         cursor.execute(
             """
-         INSERT INTO client (name, surname, username, password)
-         VALUES (?, ?, ?, ?)
+         INSERT INTO client (name, surname, username, password, role)
+         VALUES (?, ?, ?, ?, ?)
       """,
             (
                 client["name"],
                 client["surname"],
                 client["username"],
                 hashed_password,
+                client["role"]
             ),
         )
 
