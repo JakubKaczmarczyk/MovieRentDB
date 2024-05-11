@@ -31,6 +31,12 @@ def login_user(username_entry, password_entry, error_label):
     if user:
         stored_password = user[4]
         if bcrypt.checkpw(password, stored_password):
+            try:
+                current_timestamp = datetime.now()
+                cursor.execute("INSERT INTO login_logs (client_id, activity_type, login_date) VALUES (?, ?, ?)", (user[0], 'login', current_timestamp))
+                conn.commit()
+            except Exception as e:
+                print("Error logging login information:", e)
             return True
         else:
             error_label.config(text="Invalid username or password")
@@ -279,6 +285,10 @@ class SimpleGUI(tk.Tk):
     def my_rents_screen_setup(self):
         self.title("My Rents")
 
+        self.logout_button = tk.Button(
+            self, text="Logout", command=self.logout
+        )
+        self.logout_button.pack()
         self.back_to_main_button = tk.Button(
             self, text="Back to Main Page", command=self.switch_to_main_page
         )
@@ -289,6 +299,10 @@ class SimpleGUI(tk.Tk):
 
     def find_movie_screen_setup(self):
         self.title("Find Movie")
+        self.logout_button = tk.Button(
+            self, text="Logout", command=self.logout
+        )
+        self.logout_button.pack()
 
         self.back_to_main_button = tk.Button(
             self, text="Back to Main Page", command=self.switch_to_main_page
@@ -300,6 +314,10 @@ class SimpleGUI(tk.Tk):
 
     def create_rent_setup(self):
         self.title("Create Rent")
+        self.logout_button = tk.Button(
+            self, text="Logout", command=self.logout
+        )
+        self.logout_button.pack()
         self.back_to_main_button = tk.Button(
             self, text="Back to Main Page", command=self.switch_to_main_page
         )
@@ -308,6 +326,10 @@ class SimpleGUI(tk.Tk):
 
     def main_page_setup(self):
         self.title("Main Page")
+        self.logout_button = tk.Button(
+            self, text="Logout", command=self.logout
+        )
+        self.logout_button.pack()
 
         self.my_rents_button = tk.Button(
             self, text="My Rents", command=self.switch_to_my_rents
@@ -457,11 +479,12 @@ class SimpleGUI(tk.Tk):
         for movie in selected_movies:
             movie_id = movie['id']
             rent_movie(username, movie_id, formatted_start_date, formatted_end_date, price)
+        self.switch_to_my_rents()
 
     # Other
     def select_movies_to_create_rent(self):
         selected_indices = self.listbox.curselection()
-        selected_movies = [self.movies[i] for i in selected_indices]
+        selected_movies = [self.movies[i-2] for i in selected_indices]
         self.switch_to_create_rent(selected_movies)
 
     def on_closing(self):
@@ -469,6 +492,14 @@ class SimpleGUI(tk.Tk):
             conn.close()
         finally:
             self.destroy()
+
+    def logout(self):
+        try:
+            conn.close()
+            self.logged_user = None
+        finally:
+            self.switch_to_login()
+
 
 
 if __name__ == "__main__":

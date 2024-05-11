@@ -123,10 +123,21 @@ CREATE TABLE IF NOT EXISTS movie_gener (
 """
 )
 
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS activity_logs (
+    id INTEGER PRIMARY KEY,
+    client_id INTEGER,
+    activity_type TEXT,
+    login_date TIMESTAMP,
+    FOREIGN KEY (client_id) REFERENCES client(id)
+);
+""")
+
+
 
 # Randoms
 def get_random_director_id():
-    return random.randint(1, 64)  # Assuming director IDs range from 1 to 64
+    return random.randint(1, 50)  # Assuming director IDs range from 1 to 50
 
 
 # Function to get a random producer ID
@@ -256,7 +267,8 @@ for rental in data["rent"]:
     movie_id = random.randint(1, 300)
     days_rented = (end_time - start_time).days
     price_multiplier = random.randint(1, 5)  # Random multiplier for price
-    price = days_rented * price_multiplier
+    # price = days_rented * price_multiplier
+    price = days_rented * 2
 
     cursor.execute(
         """
@@ -269,4 +281,63 @@ for rental in data["rent"]:
 
 # Commit the changes and close the connection
 conn.commit()
+
+# Trigger
+cursor.execute("""
+    CREATE TRIGGER prevent_zero_count_rent
+    BEFORE INSERT ON rent
+    FOR EACH ROW
+    BEGIN
+        SELECT RAISE(ABORT, 'Cannot rent a movie with count 0') 
+        WHERE (SELECT count FROM movie WHERE id = NEW.movie_id) = 0;
+    END;
+""")
+
+# Define the trigger to log activity
+cursor.execute("""
+    CREATE TRIGGER log_registration
+    AFTER INSERT ON client
+    FOR EACH ROW
+    BEGIN
+        INSERT INTO activity_logs (user_id, activity_type, login_date) VALUES (NEW.id, 'register', CURRENT_TIMESTAMP);
+    END;
+""")
+
+# Trigger to increase price by 5 for each day of delay when an activity log is inserted
+cursor.execute("""
+    CREATE TRIGGER increase_price_for_delayed_rentals
+    AFTER INSERT ON activity_logs
+    FOR EACH ROW
+    BEGIN
+        UPDATE rent
+        SET price = price + (5 * (julianday('now') - julianday(end_date)))
+        WHERE end_date < CURRENT_TIMESTAMP;
+    END;
+""")
+
+# Views
+cursor.execute("""
+    CREATE VIEW Rental_Details AS
+    SELECT 
+        rent.id AS rental_id,
+        client.name AS client_name,
+        client.surname AS client_surname,
+        movie.title AS movie_title,
+        movie.year AS movie_year,
+        rent.start_date AS rental_start_date,
+        rent.end_date AS rental_end_date,
+        rent.price AS rental_price
+    FROM 
+        rent
+    JOIN 
+        client ON rent.client_id = client.id
+    JOIN 
+        movie ON rent.movie_id = movie.id;
+""")
+
+
+# Commit the changes to save the trigger
+conn.commit()
+
+
 conn.close()
