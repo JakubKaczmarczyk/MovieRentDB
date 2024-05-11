@@ -1,11 +1,16 @@
 import json
-import sqlite3
+import psycopg2
 import random
 import bcrypt
 from datetime import datetime, timedelta
 
 # Connect to the database (or create it if it doesn't exist)
-conn = sqlite3.connect("movie_rental.db", detect_types=sqlite3.PARSE_DECLTYPES)
+conn = psycopg2.connect(
+    dbname="movie_rental",
+    user="postgres",
+    password="1234",
+    host="localhost"
+)
 
 # Create a cursor object
 cursor = conn.cursor()
@@ -15,12 +20,13 @@ cursor = conn.cursor()
 cursor.execute(
     """
 CREATE TABLE IF NOT EXISTS client (
-   id INTEGER PRIMARY KEY,
+   id SERIAL PRIMARY KEY,
    name VARCHAR,
    surname VARCHAR,
    username VARCHAR,
    password VARCHAR,
-   last_logged_in TIMESTAMP
+   role VARCHAR,
+   last_logged_in TIMESTAMP NULL
 )
 """
 )
@@ -29,7 +35,7 @@ CREATE TABLE IF NOT EXISTS client (
 cursor.execute(
     """
 CREATE TABLE IF NOT EXISTS director (
-   id INTEGER PRIMARY KEY,
+   id SERIAL PRIMARY KEY,
    name VARCHAR,
    surname VARCHAR
 )
@@ -40,7 +46,7 @@ CREATE TABLE IF NOT EXISTS director (
 cursor.execute(
     """
 CREATE TABLE IF NOT EXISTS actor (
-   id INTEGER PRIMARY KEY,
+   id SERIAL PRIMARY KEY,
    name VARCHAR,
    surname VARCHAR
 )
@@ -51,7 +57,7 @@ CREATE TABLE IF NOT EXISTS actor (
 cursor.execute(
     """
 CREATE TABLE IF NOT EXISTS producer (
-   id INTEGER PRIMARY KEY,
+   id SERIAL PRIMARY KEY,
    producer_name VARCHAR
 )
 """
@@ -61,7 +67,7 @@ CREATE TABLE IF NOT EXISTS producer (
 cursor.execute(
     """
 CREATE TABLE IF NOT EXISTS gener (
-   id INTEGER PRIMARY KEY,
+   id SERIAL PRIMARY KEY,
    gener_name VARCHAR
 )
 """
@@ -72,14 +78,14 @@ CREATE TABLE IF NOT EXISTS gener (
 cursor.execute(
     """
 CREATE TABLE IF NOT EXISTS movie (
-   id INTEGER PRIMARY KEY,
+   id SERIAL PRIMARY KEY,
    title VARCHAR,
-   year TIMESTAMP,
+   year INTEGER,
    producer_id INTEGER,
    director_id INTEGER,
    count INTEGER,
-   FOREIGN KEY (producer_id) REFERENCES producers(id),
-   FOREIGN KEY (director_id) REFERENCES directors(id)
+   FOREIGN KEY (producer_id) REFERENCES producer(id),
+   FOREIGN KEY (director_id) REFERENCES director(id)
 )
 """
 )
@@ -88,14 +94,14 @@ CREATE TABLE IF NOT EXISTS movie (
 cursor.execute(
     """
 CREATE TABLE IF NOT EXISTS rent (
-   id INTEGER PRIMARY KEY,
+   id SERIAL PRIMARY KEY,
    client_id INTEGER,
    movie_id INTEGER,
    start_date TIMESTAMP,
    end_date TIMESTAMP,
    price INTEGER,
    FOREIGN KEY (client_id) REFERENCES client(id),
-   FOREIGN KEY (movie_id) REFERENCES movies(id)
+   FOREIGN KEY (movie_id) REFERENCES movie(id)
 )
 """
 )
@@ -106,8 +112,8 @@ cursor.execute(
 CREATE TABLE IF NOT EXISTS movie_actor (
    actor_id INTEGER,
    movie_id INTEGER,
-   FOREIGN KEY (actor_id) REFERENCES actors(id),
-   FOREIGN KEY (movie_id) REFERENCES movies(id)
+   FOREIGN KEY (actor_id) REFERENCES actor(id),
+   FOREIGN KEY (movie_id) REFERENCES movie(id)
 )
 """
 )
@@ -118,14 +124,14 @@ CREATE TABLE IF NOT EXISTS movie_gener (
    gener_id INTEGER,
    movie_id INTEGER,
    FOREIGN KEY (gener_id) REFERENCES gener(id),
-   FOREIGN KEY (movie_id) REFERENCES movies(id)
+   FOREIGN KEY (movie_id) REFERENCES movie(id)
 )
 """
 )
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS activity_logs (
-    id INTEGER PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     client_id INTEGER,
     activity_type TEXT,
     login_date TIMESTAMP,
@@ -172,7 +178,7 @@ with open("raw_data.json", "r") as f:
         cursor.execute(
             """
          INSERT INTO client (name, surname, username, password)
-         VALUES (?, ?, ?, ?)
+         VALUES (%s, %s, %s, %s)
       """,
             (
                 client["name"],
@@ -186,7 +192,7 @@ with open("raw_data.json", "r") as f:
         cursor.execute(
             """
          INSERT INTO actor (name, surname)
-         VALUES (?, ?)
+         VALUES (%s, %s)
       """,
             (actor["name"], actor["surname"]),
         )
@@ -195,7 +201,7 @@ with open("raw_data.json", "r") as f:
         cursor.execute(
             """
          INSERT INTO director (name, surname)
-         VALUES (?, ?)
+         VALUES (%s, %s)
       """,
             (director["name"], director["surname"]),
         )
@@ -204,7 +210,7 @@ with open("raw_data.json", "r") as f:
         cursor.execute(
             """
          INSERT INTO producer (producer_name)
-         VALUES (?)
+         VALUES (%s)
       """,
             (producer["producer_name"],),
         )
@@ -213,7 +219,7 @@ with open("raw_data.json", "r") as f:
         cursor.execute(
             """
          INSERT INTO gener (gener_name)
-         VALUES (?)
+         VALUES (%s)
       """,
             (gener["gener_name"],),
         )
@@ -228,7 +234,7 @@ with open("raw_data.json", "r") as f:
         cursor.execute(
             """
          INSERT INTO movie (title, year, producer_id, director_id, count)
-         VALUES (?, ?, ?, ?, ?)
+         VALUES (%s, %s, %s, %s, %s)
       """,
             (title, year, producer_id, director_id, count),
         )
@@ -241,7 +247,7 @@ with open("raw_data.json", "r") as f:
             cursor.execute(
                 """
             INSERT INTO movie_actor (actor_id, movie_id)
-            VALUES (?, ?)
+            VALUES (%s, %s)
          """,
                 (actor_id, cursor.lastrowid),
             )  # cursor.lastrowid gets the ID of the last inserted movie
@@ -255,7 +261,7 @@ with open("raw_data.json", "r") as f:
             cursor.execute(
                 """
             INSERT INTO movie_gener (gener_id, movie_id)
-            VALUES (?, ?)
+            VALUES (%s, %s)
          """,
                 (genre_id, cursor.lastrowid),
             )  # cursor.lastrowid gets the ID of the last inserted movie
@@ -273,7 +279,7 @@ for rental in data["rent"]:
     cursor.execute(
         """
       INSERT INTO rent (client_id, movie_id, start_date, end_date, price)
-      VALUES (?, ?, ?, ?, ?)
+      VALUES (%s, %s, %s, %s, %s)
    """,
         (client_id, movie_id, start_time, end_time, price),
     )
@@ -299,7 +305,7 @@ cursor.execute("""
     AFTER INSERT ON client
     FOR EACH ROW
     BEGIN
-        INSERT INTO activity_logs (user_id, activity_type, login_date) VALUES (NEW.id, 'register', CURRENT_TIMESTAMP);
+        INSERT INTO activity_logs (client_id, activity_type, login_date) VALUES (NEW.id, 'register', CURRENT_TIMESTAMP);
     END;
 """)
 
@@ -315,13 +321,28 @@ cursor.execute("""
     END;
 """)
 
+cursor.execute("""
+CREATE TRIGGER prevent_delete_rent
+BEFORE DELETE ON rent
+FOR EACH ROW
+WHEN (
+    SELECT role
+    FROM client
+    WHERE username = CURRENT_USER
+) != 'admin'
+BEGIN
+    SELECT RAISE(ABORT, 'Only administrators can delete rentals');
+END;
+
+""")
+
 # Views
 cursor.execute("""
     CREATE VIEW Rental_Details AS
     SELECT 
         rent.id AS rental_id,
-        client.name AS client_name,
-        client.surname AS client_surname,
+        client.name AS user_name,
+        client.surname AS user_surname,
         movie.title AS movie_title,
         movie.year AS movie_year,
         rent.start_date AS rental_start_date,
