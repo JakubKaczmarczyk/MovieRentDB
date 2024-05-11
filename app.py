@@ -502,28 +502,37 @@ class SimpleGUI(tk.Tk):
             username, password, name, surname, error_label
         )
         if result:
-            self.username_entry.delete(0, tk.END)
-            self.password_entry.delete(0, tk.END)
-            self.name_entry.delete(0, tk.END)
-            self.surname_entry.delete(0, tk.END)
+            self.register_entry_username.delete(0, tk.END)
+            self.register_entry_password.delete(0, tk.END)
+            self.register_entry_name.delete(0, tk.END)
+            self.register_entry_surname.delete(0, tk.END)
             self.switch_to_login()
 
     def fetch_rents(self):
         reservations = get_user_reservations(self.logged_user)
+        listbox = tk.Listbox(self, width=100, height=20)
         if reservations:
             for i, reservation in enumerate(reservations):
-                label_text = f"Movie: {reservation['movie_title']} | Start Date: {reservation['start_date']} | End Date: {reservation['end_date']} | Price: {reservation['price']}"
-                tk.Label(self, text=label_text).pack()
+                listbox.insert(tk.END, f"Movie: {reservation['movie_title']} | Start Date: {reservation['start_date']} | End Date: {reservation['end_date']} | Price: {reservation['price']}")
         else:
-            tk.Label(self, text="No reservations found.").pack()
+            listbox.insert(tk.END, "No reservations found.")
+        listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar = tk.Scrollbar(self, orient=tk.VERTICAL, command=listbox.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        listbox.config(yscrollcommand=scrollbar.set)
 
     def fetch_logs(self):
         activities = get_users_activity()
-        display_text = "\n".join([
-            f"Activity {i+1}:Time: {activity['activity_time']} Client Name: {activity['client_name']} {activity['client_surname']} Username: {activity['client_username']} Action Type: {activity['action_type']} Last Logged In: {activity['last_logged_in']} Client Role: {activity['client_role']}"
-            for i, activity in enumerate(activities)
-        ])
-        tk.Label(self, text=display_text if activities else "No activity found.").pack()
+        listbox = tk.Listbox(self, width=100, height=20)
+        if activities:
+            for i, activity in enumerate(activities):
+                listbox.insert(tk.END, f"Activity {i+1}: Time: {activity['activity_time']} Client Name: {activity['client_name']} {activity['client_surname']} Username: {activity['client_username']} Action Type: {activity['action_type']} Client Role: {activity['client_role']}")
+        else:
+            listbox.insert(tk.END, "No activity found.")
+        listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar = tk.Scrollbar(self, orient=tk.VERTICAL, command=listbox.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        listbox.config(yscrollcommand=scrollbar.set)
 
 
     def fetch_movies(self):
@@ -551,7 +560,10 @@ class SimpleGUI(tk.Tk):
         else:
             self.listbox.insert(tk.END, "No movies found.")
 
-        self.listbox.pack()
+        self.listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar = tk.Scrollbar(self, orient=tk.VERTICAL, command=self.listbox.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.listbox.config(yscrollcommand=scrollbar.set)
         
     def create_rent(self, selected_movies):
         self.start_date_label = tk.Label(self, text="Start Date:")
@@ -630,7 +642,10 @@ class SimpleGUI(tk.Tk):
                 self.listbox.insert(tk.END, row)
         else:
             self.listbox.insert(tk.END, "No rents found.")
-        self.listbox.pack()
+        self.listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar = tk.Scrollbar(self, orient=tk.VERTICAL, command=self.listbox.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.listbox.config(yscrollcommand=scrollbar.set)
         
 
     # Other

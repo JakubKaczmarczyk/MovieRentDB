@@ -9,7 +9,11 @@ conn = sqlite3.connect("movie_rental.db", detect_types=sqlite3.PARSE_DECLTYPES)
 
 # Create a cursor object
 cursor = conn.cursor()
-
+cursor.execute(
+    """
+    PRAGMA time_zone = 'Europe/Warsaw+0200';
+    """
+)
 ## SIMPLE TABLES ##
 # Done
 cursor.execute(
@@ -286,7 +290,7 @@ for rental in data["rent"]:
 # Commit the changes and close the connection
 conn.commit()
 
-# Trigger
+# Triggers
 cursor.execute("""
     CREATE TRIGGER prevent_zero_count_rent
     BEFORE INSERT ON rent
@@ -297,13 +301,13 @@ cursor.execute("""
     END;
 """)
 
-# Define the trigger to log activity
+# Define the trigger to log activity when registering new user
 cursor.execute("""
     CREATE TRIGGER log_registration
     AFTER INSERT ON client
     FOR EACH ROW
     BEGIN
-        INSERT INTO activity_logs (user_id, activity_type, date) VALUES (NEW.id, 'register', CURRENT_TIMESTAMP);
+        INSERT INTO activity_logs (client_id, activity_type, date) VALUES (NEW.id, 'register', CURRENT_TIMESTAMP);
     END;
 """)
 
