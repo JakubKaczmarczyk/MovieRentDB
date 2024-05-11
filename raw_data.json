@@ -9,7 +9,8 @@
     {"name":"Jackson","surname":"Lomath","username":"jlomath6","last_logged_in":"7/26/2023"},
     {"name":"Hank","surname":"Iozefovich","username":"hiozefovich7","last_logged_in":"7/30/2023"},
     {"name":"Morton","surname":"Eacott","username":"meacott8","last_logged_in":"1/30/2024"},
-    {"name":"Lilah","surname":"Aulsford","username":"laulsford9","last_logged_in":"4/15/2023"}
+    {"name":"Lilah","surname":"Aulsford","username":"laulsford9","last_logged_in":"4/15/2023"},
+    {"name":"Kuba","surname":"Kaczmarczyk","username":"Kuba1234","last_logged_in":"1/11/2022"}
 ],
 "director": [
     {"name":"Glynnis","surname":"Biasioli"},
@@ -547,7 +548,7 @@
     {"title":"Prisoners of the Lost Universe","year":1999,"count":76},
     {"title":"Gloria","year":1986,"count":53},
     {"title":"Incredible Burt Wonderstone, The","year":2010,"count":70},
-    {"title":"...All the Marbles (California Dolls, The)","year":1990,"count":30},
+    {"title":"All the Marbles (California Dolls, The)","year":1990,"count":30},
     {"title":"Purple Noon (Plein soleil)","year":2009,"count":21},
     {"title":"Attila (Attila Flagello di Dio)","year":2011,"count":100},
     {"title":"Bay of Blood (a.k.a. Twitch of the Death Nerve) (Reazione a catena)","year":2011,"count":23},
