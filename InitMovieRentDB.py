@@ -70,6 +70,17 @@ CREATE TABLE IF NOT EXISTS gener (
 
 ## Advanced Tables ##
 # Done
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS activity_logs (
+    id INTEGER PRIMARY KEY,
+    client_id INTEGER,
+    activity_type TEXT,
+    date TIMESTAMP,
+    FOREIGN KEY (client_id) REFERENCES client(id)
+);
+""")
+
+# Done
 cursor.execute(
     """
 CREATE TABLE IF NOT EXISTS movie (
@@ -124,17 +135,6 @@ CREATE TABLE IF NOT EXISTS movie_gener (
 )
 """
 )
-
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS activity_logs (
-    id INTEGER PRIMARY KEY,
-    client_id INTEGER,
-    activity_type TEXT,
-    login_date TIMESTAMP,
-    FOREIGN KEY (client_id) REFERENCES client(id)
-);
-""")
-
 
 
 # Randoms
@@ -303,7 +303,7 @@ cursor.execute("""
     AFTER INSERT ON client
     FOR EACH ROW
     BEGIN
-        INSERT INTO activity_logs (user_id, activity_type, login_date) VALUES (NEW.id, 'register', CURRENT_TIMESTAMP);
+        INSERT INTO activity_logs (user_id, activity_type, date) VALUES (NEW.id, 'register', CURRENT_TIMESTAMP);
     END;
 """)
 
@@ -313,9 +313,47 @@ cursor.execute("""
     AFTER INSERT ON activity_logs
     FOR EACH ROW
     BEGIN
+        -- Update price only for active rentals
         UPDATE rent
         SET price = price + (5 * (julianday('now') - julianday(end_date)))
-        WHERE end_date < CURRENT_TIMESTAMP;
+        WHERE end_date < CURRENT_TIMESTAMP AND is_active = 1;
+        
+        -- Log activity for the price increase
+        INSERT INTO activity_logs (client_id, activity_type, date)
+        SELECT client_id, 'price_increase', CURRENT_TIMESTAMP
+        FROM rent
+        WHERE end_date < CURRENT_TIMESTAMP AND is_active = 1;
+    END;
+""")
+
+
+# Trigger to log activity when a new row is inserted into the rents table
+cursor.execute("""
+    CREATE TRIGGER log_rent_insert_activity
+    AFTER INSERT ON rent
+    FOR EACH ROW
+    BEGIN
+        -- Insert activity into activity_logs for the insert operation
+        INSERT INTO activity_logs (client_id, activity_type, date)
+        VALUES (NEW.client_id, 'rent_started', CURRENT_TIMESTAMP);
+    END;
+""")
+
+# Trigger to log activity when a row is updated in the rents table
+cursor.execute("""
+    CREATE TRIGGER log_rent_update_activity
+    AFTER UPDATE OF is_active ON rent
+    FOR EACH ROW
+    WHEN OLD.is_active <> NEW.is_active
+    BEGIN
+        -- Insert activity into activity_logs for the update operation
+        INSERT INTO activity_logs (client_id, activity_type, date)
+        VALUES (NEW.client_id, 
+                CASE 
+                    WHEN NEW.is_active = 1 THEN 'rent_started' 
+                    ELSE 'rent_finished' 
+                END, 
+                CURRENT_TIMESTAMP);
     END;
 """)
 
@@ -337,6 +375,40 @@ cursor.execute("""
         client ON rent.client_id = client.id
     JOIN 
         movie ON rent.movie_id = movie.id;
+""")
+
+cursor.execute("""
+    CREATE VIEW Users_Activity AS
+    SELECT
+        activity_logs.date AS activity_time,
+        client.id AS client_id,
+        client.name AS client_name,
+        client.surname AS client_surname,
+        client.username AS client_username,
+        activity_logs.activity_type AS action_type,
+        client.last_logged_in AS last_logged_in,
+        client.role AS client_role
+    FROM
+        activity_logs
+    JOIN
+        client ON activity_logs.client_id = client.id
+    ORDER BY
+        activity_logs.date DESC;
+
+""")
+
+cursor.execute("""
+    CREATE VIEW AvailableMovies AS
+    SELECT m.id, m.title, m.count, m.year, p.id AS producer_id, p.producer_name, 
+        d.id AS director_id, d.name AS director_name, d.surname AS director_surname, m.count, 
+            a.id AS actor_id, a.name AS actor_name, a.surname AS actor_surname
+        FROM movie m
+        LEFT JOIN movie_actor ma ON m.id = ma.movie_id
+        LEFT JOIN actor a ON ma.actor_id = a.id
+        LEFT JOIN producer p ON m.producer_id = p.id
+        LEFT JOIN director d ON m.director_id = d.id
+        WHERE m.count > 0
+        ORDER BY m.title
 """)
 
 

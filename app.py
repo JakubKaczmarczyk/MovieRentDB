@@ -31,7 +31,7 @@ def login_user(username, password, error_label):
         if bcrypt.checkpw(password, stored_password):
             try:
                 current_timestamp = datetime.now()
-                cursor.execute("INSERT INTO activity_logs (client_id, activity_type, login_date) VALUES (?, ?, ?)", (user[0], 'login', current_timestamp))
+                cursor.execute("INSERT INTO activity_logs (client_id, activity_type, date) VALUES (?, ?, ?)", (user[0], 'login', current_timestamp))
                 conn.commit()
             except Exception as e:
                 print("Error logging login information:", e)
@@ -103,7 +103,6 @@ def register_user(
     conn.commit()
     return True
 
-
 def get_user_reservations(username):
     try:
         query = """
@@ -132,21 +131,37 @@ def get_user_reservations(username):
         print(f"An error occurred: {e}")
         return []
 
+def get_users_activity():
+    try:
+        cursor.execute(
+            """
+            SELECT * FROM Users_Activity
+            """
+        )
+        rows = cursor.fetchall()
+        activity_list = []
+        for row in rows:
+            activity_time, client_id, client_name, client_surname, client_username, action_type, last_logged_in, client_role = row
+            activity_list.append({
+                "activity_time": activity_time,
+                "client_id": client_id,
+                "client_name": client_name,
+                "client_surname": client_surname,
+                "client_username": client_username,
+                "action_type": action_type,
+                "last_logged_in": last_logged_in,
+                "client_role": client_role
+            })
+        return activity_list
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return []
 
 def get_movies():
     try:
         cursor.execute(
             """
-        SELECT m.id, m.title, m.count, m.year, p.id AS producer_id, p.producer_name, 
-        d.id AS director_id, d.name AS director_name, d.surname AS director_surname, m.count, 
-            a.id AS actor_id, a.name AS actor_name, a.surname AS actor_surname
-        FROM movie m
-        LEFT JOIN movie_actor ma ON m.id = ma.movie_id
-        LEFT JOIN actor a ON ma.actor_id = a.id
-        LEFT JOIN producer p ON m.producer_id = p.id
-        LEFT JOIN director d ON m.director_id = d.id
-        WHERE m.count > 0
-        ORDER BY m.title
+        SELECT * FROM AvailableMovies
         """
         )
         rows = cursor.fetchall()
@@ -210,8 +225,8 @@ def rent_movie(
     if not price:
         return False
 
-    cursor.execute("INSERT INTO rent (client_id, movie_id, start_date, end_date, price) VALUES (?,?,?,?,?)",
-                   (client_id, movie_id, start_date, end_date, price))
+    cursor.execute("INSERT INTO rent (client_id, movie_id, start_date, end_date, price, is_active) VALUES (?,?,?,?,?,?)",
+                   (client_id, movie_id, start_date, end_date, price, True))
     cursor.execute("UPDATE movie SET count = count - 1 WHERE id = ?", (movie_id,))
     conn.commit()
     return True
@@ -375,6 +390,21 @@ class SimpleGUI(tk.Tk):
         )
         self.back_to_main_button.pack()
 
+    def view_logs_setup(self):
+        self.title("Logs")
+
+        self.logout_button = tk.Button(
+            self, text="Logout", command=self.logout
+        )
+        self.logout_button.pack()
+        self.back_to_main_button = tk.Button(
+            self, text="Back to Main Page", command=self.switch_to_main_page
+        )
+        self.back_to_main_button.pack()
+
+        self.my_rents_label = tk.Label(self, text="Users Activity")
+        self.my_rents_label.pack()
+
 
     def main_page_setup(self):
         self.title("Main Page")
@@ -397,6 +427,10 @@ class SimpleGUI(tk.Tk):
             self, text="Finish Rent", command=self.switch_to_finish_rent_search
             )
             self.finish_rent_button.pack()
+            self.activity_view_button = tk.Button(
+            self, text="View Activity", command=self.switch_to_view_logs
+            )
+            self.activity_view_button.pack()
 
     ## Switches ##
     def switch_to_register(self):
@@ -428,6 +462,11 @@ class SimpleGUI(tk.Tk):
     def switch_to_finish_rent(self):
         self.close_all_windows()
         self.finish_rent_setup()
+
+    def switch_to_view_logs(self):
+        self.close_all_windows()
+        self.view_logs_setup()
+        self.fetch_logs()
 
     def switch_to_create_rent(self, selected_movies):
         self.close_all_windows()
@@ -477,6 +516,15 @@ class SimpleGUI(tk.Tk):
                 tk.Label(self, text=label_text).pack()
         else:
             tk.Label(self, text="No reservations found.").pack()
+
+    def fetch_logs(self):
+        activities = get_users_activity()
+        display_text = "\n".join([
+            f"Activity {i+1}:Time: {activity['activity_time']} Client Name: {activity['client_name']} {activity['client_surname']} Username: {activity['client_username']} Action Type: {activity['action_type']} Last Logged In: {activity['last_logged_in']} Client Role: {activity['client_role']}"
+            for i, activity in enumerate(activities)
+        ])
+        tk.Label(self, text=display_text if activities else "No activity found.").pack()
+
 
     def fetch_movies(self):
         self.create_rent_button = tk.Button(
@@ -595,6 +643,7 @@ class SimpleGUI(tk.Tk):
         selected_indices = self.listbox.curselection()
         selected_rents = [self.users_rents[i-2] for i in selected_indices]
         finish_selected_rents(selected_rents)
+        self.switch_to_main_page()
 
 
     def on_closing(self):
