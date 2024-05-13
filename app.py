@@ -199,13 +199,42 @@ def get_users_activity():
         print(f"An error occurred: {e}")
         return []
 
-def get_movies():
+def get_movies(
+    title_filter=None,
+    producer_filter=None,
+    director_name_filter=None,
+    year_filter=None,
+    actors_filter=None,
+):
     try:
-        cursor.execute(
-            """
-        SELECT * FROM AvailableMovies
-        """
-        )
+        where_clause = []
+        params = []
+
+        query = "SELECT * FROM AvailableMovies"
+
+        # Build WHERE clause based on provided filters
+        if title_filter:
+            where_clause.append(f"title LIKE ?")
+            params.append("%" + title_filter + "%")
+        if producer_filter:
+            where_clause.append("producer_name LIKE ?")
+            params.append("%" + producer_filter + "%")
+        if director_name_filter:
+            where_clause.append("(director_name LIKE ? OR director_surname LIKE ?)")
+            params.append("%" + director_name_filter + "%")
+            params.append("%" + director_name_filter + "%")
+        if year_filter:
+            where_clause.append("year LIKE ?")
+            params.append("%" + year_filter + "%")
+        if actors_filter:
+            where_clause.append("(actor_name LIKE ? OR actor_surname LIKE ?)")
+            params.append("%" + actors_filter + "%")
+            params.append("%" + actors_filter + "%")
+
+        if where_clause:
+            query += " WHERE " + " AND ".join(where_clause)
+
+        cursor.execute(query, params)
         rows = cursor.fetchall()
         movies = {}
         for row in rows:
@@ -616,34 +645,65 @@ class SimpleGUI(tk.Tk):
 
 
     def fetch_movies(self):
+        def update_movies_list(*args):
+            title_search_text = self.entry_fields[0].get()
+            producer_search_text = self.entry_fields[1].get()
+            director_search_text = self.entry_fields[2].get()
+            year_search_text = self.entry_fields[3].get()
+            actor_search_text = self.entry_fields[4].get()
+
+            self.movies = get_movies(
+                title_search_text,
+                producer_search_text,
+                director_search_text,
+                year_search_text,
+                actor_search_text,
+            )
+            self.listbox.delete(0, tk.END)
+            
+            if self.movies:
+                columns = ["Title", "Count", "Producer", "Director", "Year", "Actors"]
+                header = "{:<100} | {:<50} | {:<50} | {:<10} | {:<100}".format(*columns)
+                self.listbox.insert(tk.END, header)
+                self.listbox.insert(tk.END, "-" * len(header))
+
+                for movie in self.movies:
+                    title = movie['title']
+                    count = movie['count']
+                    year = movie['year']
+                    producer = movie['producer_name']
+                    director = movie['director_name'] + " " + movie['director_surname']
+                    actors = ", ".join([f"{actor['name']} {actor['surname']}" for actor in movie["actors"]])
+                    row = "{:<100} | {:<5} | {:<50} | {:<50} | {:<10} | {:<100}".format(title, count, producer, director, year, actors)
+                    self.listbox.insert(tk.END, row)
+            else:
+                self.listbox.insert(tk.END, "No movies found.")
+
+        def on_search_change(*args):
+            update_movies_list()
+            
+        column_labels = ["Title:", "Producer:", "Director:", "Year:", "Actor:"]
+        self.entry_fields = []
+        for label_text in column_labels:
+            label = tk.Label(self, text=label_text, width=20, anchor=tk.W)
+            label.pack()
+            entry = tk.Entry(self, width=20)
+            entry.pack()
+            entry.bind("<KeyRelease>", on_search_change)
+            self.entry_fields.append(entry)
+    
         self.create_rent_button = tk.Button(
             self, text="Create Rent", command=self.select_movies_to_create_rent
         )
         self.create_rent_button.pack()
-        self.movies = get_movies()
         self.listbox = tk.Listbox(self, selectmode=tk.MULTIPLE, width=1000, height=600)
-        if self.movies:
-            columns = ["Title", "Count", "Producer", "Director", "Year", "Actors"]
-            header = "{:<100} | {:<50} | {:<50} | {:<10} | {:<100}".format(*columns)
-            self.listbox.insert(tk.END, header)
-            self.listbox.insert(tk.END, "-" * len(header))
+        self.listbox.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-            for movie in self.movies:
-                title = movie['title']
-                count = movie['count']
-                year = movie['year']
-                producer = movie['producer_name']
-                director = movie['director_name'] + " " + movie['director_surname']
-                actors = ", ".join([f"{actor['name']} {actor['surname']}" for actor in movie["actors"]])
-                row = "{:<100} | {:<5} | {:<50} | {:<50} | {:<10} | {:<100}".format(title, count, producer, director, year, actors)
-                self.listbox.insert(tk.END, row)
-        else:
-            self.listbox.insert(tk.END, "No movies found.")
-
-        self.listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar = tk.Scrollbar(self, orient=tk.VERTICAL, command=self.listbox.yview)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.listbox.config(yscrollcommand=scrollbar.set)
+        update_movies_list()
+
         
     def create_rent(self, selected_movies):
         self.start_date_label = tk.Label(self, text="Start Date:")
@@ -652,8 +712,8 @@ class SimpleGUI(tk.Tk):
         # Field populated with current date
         self.start_date_var = tk.StringVar()
         self.start_date_var.set(datetime.today().strftime('%Y-%m-%d'))  # Populate with current date
-        self.start_date_entry = tk.Entry(self, textvariable=self.start_date_var)
-        self.start_date_entry.pack()
+        self.start_date_label = tk.Label(textvariable=self.start_date_var)
+        self.start_date_label.pack()
 
         self.end_date_label = tk.Label(self, text="End Date:")
         self.end_date_label.pack()
