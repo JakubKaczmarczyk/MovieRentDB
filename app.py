@@ -106,11 +106,53 @@ def register_user(
 def get_user_reservations(username):
     try:
         query = """
-      SELECT m.title, r.start_date, r.end_date, r.price, c.name, c.surname, r.id
-      FROM rent r
-      INNER JOIN movie m ON r.movie_id = m.id
-      INNER JOIN client c ON r.client_id = c.id
-      WHERE c.username = ? AND r.is_active = 1
+        SELECT 
+            rental_title, 
+            rental_start_date, 
+            rental_end_date, 
+            rental_price, 
+            client_name, 
+            client_surname, 
+            rental_id
+        FROM 
+            Active_Rental_Details
+        WHERE 
+        client_username = ?;
+    """
+        cursor.execute(query, (username,))
+
+        reservations = []
+        for row in cursor.fetchall():
+            reservation = {
+                "movie_title": row[0],
+                "start_date": row[1],
+                "end_date": row[2],
+                "price": row[3],
+                "name": row[4],
+                "surname": row[5],
+                "id": row[6]
+            }
+            reservations.append(reservation)
+        return reservations
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return []
+
+def get_user_archived_reservations(username):
+    try:
+        query = """
+        SELECT 
+            rental_title, 
+            rental_start_date, 
+            rental_end_date, 
+            rental_price, 
+            client_name, 
+            client_surname, 
+            rental_id
+        FROM 
+            Archived_Rental_Details
+        WHERE 
+        client_username = ?;
     """
         cursor.execute(query, (username,))
 
@@ -335,6 +377,21 @@ class SimpleGUI(tk.Tk):
 
         self.my_rents_label = tk.Label(self, text="My Rents")
         self.my_rents_label.pack()
+    
+    def my_archived_rents_screen_setup(self):
+        self.title("My Archived Rents")
+
+        self.logout_button = tk.Button(
+            self, text="Logout", command=self.logout
+        )
+        self.logout_button.pack()
+        self.back_to_main_button = tk.Button(
+            self, text="Back to Main Page", command=self.switch_to_main_page
+        )
+        self.back_to_main_button.pack()
+
+        self.my_rents_label = tk.Label(self, text="My Archived Rents")
+        self.my_rents_label.pack()
 
     def find_movie_screen_setup(self):
         self.title("Find Movie")
@@ -418,6 +475,11 @@ class SimpleGUI(tk.Tk):
         )
         self.my_rents_button.pack()
 
+        self.my_archived_rents_button = tk.Button(
+            self, text="My Archived Rents", command=self.switch_to_my_archived_rents
+        )
+        self.my_archived_rents_button.pack()
+
         self.find_movie_button = tk.Button(
             self, text="Find Movie", command=self.switch_to_find_movie
         )
@@ -445,6 +507,11 @@ class SimpleGUI(tk.Tk):
         self.close_all_windows()
         self.my_rents_screen_setup()
         self.fetch_rents()
+
+    def switch_to_my_archived_rents(self):
+        self.close_all_windows()
+        self.my_archived_rents_screen_setup()
+        self.fetch_archived_rents()
 
     def switch_to_find_movie(self):
         self.close_all_windows()
@@ -510,6 +577,19 @@ class SimpleGUI(tk.Tk):
 
     def fetch_rents(self):
         reservations = get_user_reservations(self.logged_user)
+        listbox = tk.Listbox(self, width=100, height=20)
+        if reservations:
+            for i, reservation in enumerate(reservations):
+                listbox.insert(tk.END, f"Movie: {reservation['movie_title']} | Start Date: {reservation['start_date']} | End Date: {reservation['end_date']} | Price: {reservation['price']}")
+        else:
+            listbox.insert(tk.END, "No reservations found.")
+        listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar = tk.Scrollbar(self, orient=tk.VERTICAL, command=listbox.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        listbox.config(yscrollcommand=scrollbar.set)
+    
+    def fetch_archived_rents(self):
+        reservations = get_user_archived_reservations(self.logged_user)
         listbox = tk.Listbox(self, width=100, height=20)
         if reservations:
             for i, reservation in enumerate(reservations):

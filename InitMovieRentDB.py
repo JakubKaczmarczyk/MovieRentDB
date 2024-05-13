@@ -363,13 +363,14 @@ cursor.execute("""
 
 # Views
 cursor.execute("""
-    CREATE VIEW Rental_Details AS
+    CREATE VIEW Active_Rental_Details AS
     SELECT 
         rent.id AS rental_id,
         client.name AS client_name,
         client.surname AS client_surname,
-        movie.title AS movie_title,
-        movie.year AS movie_year,
+        client.username AS client_username,
+        movie.title AS rental_title,
+        movie.year AS rental_year,
         rent.start_date AS rental_start_date,
         rent.end_date AS rental_end_date,
         rent.price AS rental_price
@@ -378,7 +379,33 @@ cursor.execute("""
     JOIN 
         client ON rent.client_id = client.id
     JOIN 
-        movie ON rent.movie_id = movie.id;
+        movie ON rent.movie_id = movie.id
+    WHERE 
+        rent.is_active = 1;
+
+""")
+
+cursor.execute("""
+    CREATE VIEW Archived_Rental_Details AS
+    SELECT 
+        rent.id AS rental_id,
+        client.name AS client_name,
+        client.surname AS client_surname,
+        client.username AS client_username,
+        movie.title AS rental_title,
+        movie.year AS rental_year,
+        rent.start_date AS rental_start_date,
+        rent.end_date AS rental_end_date,
+        rent.price AS rental_price
+    FROM 
+        rent
+    JOIN 
+        client ON rent.client_id = client.id
+    JOIN 
+        movie ON rent.movie_id = movie.id
+    WHERE 
+        rent.is_active = 0;
+
 """)
 
 cursor.execute("""
