@@ -1,19 +1,20 @@
 import tkinter as tk
-import sqlite3
+import psycopg2
 import bcrypt
-import json
-import random
 from datetime import datetime, timedelta
 from tkcalendar import DateEntry
 
 
 
-conn = sqlite3.connect("movie_rental.db")
+conn = psycopg2.connect(
+    dbname="movie_rental",
+    user="postgres",
+    password="1234")
 cursor = conn.cursor()
 
 
 def login_user(username, password, error_label):
-    password = password.encode("utf-8")
+    password_encoded = password.encode("utf-8")
 
     if not username:
         error_label.config(text="Username cannot be empty")
@@ -23,15 +24,15 @@ def login_user(username, password, error_label):
         error_label.config(text="Password cannot be empty")
         return False
 
-    cursor.execute("SELECT * FROM client WHERE username = ?", (username,))
+    cursor.execute("SELECT * FROM client WHERE username = %s", (username,))
     user = cursor.fetchone()
 
     if user:
         stored_password = user[4]
-        if bcrypt.checkpw(password, stored_password):
+        if bcrypt.checkpw(password_encoded, stored_password.encode("utf-8")):
             try:
                 current_timestamp = datetime.now()
-                cursor.execute("INSERT INTO activity_logs (client_id, activity_type, date) VALUES (?, ?, ?)", (user[0], 'login', current_timestamp))
+                cursor.execute("INSERT INTO activity_logs (client_id, activity_type, date) VALUES (%s, %s, CURRENT_TIMESTAMP)", (user[0], 'login'))
                 conn.commit()
             except Exception as e:
                 print("Error logging login information:", e)
@@ -44,7 +45,7 @@ def login_user(username, password, error_label):
         return False
 
 def is_user_admin(username, password, error_label):
-    password = password.encode("utf-8")
+    password_encoded = password.encode("utf-8")
 
     if not username:
         error_label.config(text="Username cannot be empty")
@@ -54,12 +55,12 @@ def is_user_admin(username, password, error_label):
         error_label.config(text="Password cannot be empty")
         return False
 
-    cursor.execute("SELECT * FROM client WHERE username = ?", (username,))
+    cursor.execute("SELECT * FROM client WHERE username = %s", (username,))
     user = cursor.fetchone()
 
     if user:
         stored_password = user[4]
-        if bcrypt.checkpw(password, stored_password):
+        if bcrypt.checkpw(password_encoded, stored_password.encode("utf-8")):
             if user[5] == "admin":
                 return True
             else:
@@ -90,14 +91,14 @@ def register_user(
         error_label.config(text="Surname cannot be empty")
         return False
 
-    cursor.execute(f"SELECT * FROM client WHERE name = ?", (username,))
+    cursor.execute("SELECT * FROM client WHERE name = %s", (username,))
     if cursor.fetchone() is not None:
         error_label.config(text="Username already exists")
         return False
 
-    hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+    hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode('utf-8')
     cursor.execute(
-        "INSERT INTO client (username, password, name, surname, last_logged_in) VALUES (?,?,?,?,?)",
+        "INSERT INTO client (username, password, name, surname, last_logged_in) VALUES (%s,%s,%s,%s,%s)",
         (username, hashed_password, name, surname, None),
     )
     conn.commit()
@@ -117,7 +118,7 @@ def get_user_reservations(username):
         FROM 
             Active_Rental_Details
         WHERE 
-        client_username = ?;
+        client_username = %s;
     """
         cursor.execute(query, (username,))
 
@@ -152,7 +153,7 @@ def get_user_archived_reservations(username):
         FROM 
             Archived_Rental_Details
         WHERE 
-        client_username = ?;
+        client_username = %s;
     """
         cursor.execute(query, (username,))
 
@@ -214,20 +215,20 @@ def get_movies(
 
         # Build WHERE clause based on provided filters
         if title_filter:
-            where_clause.append(f"title LIKE ?")
+            where_clause.append("title LIKE %s")
             params.append("%" + title_filter + "%")
         if producer_filter:
-            where_clause.append("producer_name LIKE ?")
+            where_clause.append("producer_name LIKE %s")
             params.append("%" + producer_filter + "%")
         if director_name_filter:
-            where_clause.append("(director_name LIKE ? OR director_surname LIKE ?)")
+            where_clause.append("(director_name LIKE %s OR director_surname LIKE %s)")
             params.append("%" + director_name_filter + "%")
             params.append("%" + director_name_filter + "%")
         if year_filter:
-            where_clause.append("year LIKE ?")
+            where_clause.append("CAST(year AS VARCHAR) LIKE %s")
             params.append("%" + year_filter + "%")
         if actors_filter:
-            where_clause.append("(actor_name LIKE ? OR actor_surname LIKE ?)")
+            where_clause.append("(actor_name LIKE %s OR actor_surname LIKE %s)")
             params.append("%" + actors_filter + "%")
             params.append("%" + actors_filter + "%")
 
@@ -248,7 +249,6 @@ def get_movies(
                 director_id,
                 director_name,
                 director_surname,
-                count,
                 actor_id,
                 actor_name,
                 actor_surname,
@@ -264,7 +264,6 @@ def get_movies(
                     "director_id": director_id,
                     "director_name": director_name,
                     "director_surname": director_surname,
-                    "count": count,
                     "actors": [],
                 }
             if actor_id:
@@ -280,7 +279,7 @@ def get_movies(
 def rent_movie(
     username, movie_id, start_date, end_date, price
     ):
-    cursor.execute("SELECT id FROM client WHERE username = ?", (username,))
+    cursor.execute("SELECT id FROM client WHERE username = %s", (username,))
     result = cursor.fetchone()
     client_id = result[0]
 
@@ -296,9 +295,9 @@ def rent_movie(
     if not price:
         return False
 
-    cursor.execute("INSERT INTO rent (client_id, movie_id, start_date, end_date, price, is_active) VALUES (?,?,?,?,?,?)",
+    cursor.execute("INSERT INTO rent (client_id, movie_id, start_date, end_date, price, is_active) VALUES (%s, %s, %s, %s, %s, %s)",
                    (client_id, movie_id, start_date, end_date, price, True))
-    cursor.execute("UPDATE movie SET count = count - 1 WHERE id = ?", (movie_id,))
+    cursor.execute("UPDATE movie SET count = count - 1 WHERE id = %s", (movie_id,))
     conn.commit()
     return True
 
@@ -307,7 +306,7 @@ def finish_selected_rents(user_rents):
         for rent in user_rents:
             rent_id = rent.get("id")
             if rent_id is not None:
-                cursor.execute("UPDATE rent SET is_active = ? WHERE id = ?", (False, rent_id))
+                cursor.execute("UPDATE rent SET is_active = %s WHERE id = %s", (False, rent_id))
                 conn.commit()
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -742,11 +741,13 @@ class SimpleGUI(tk.Tk):
         start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
         end_datetime = datetime.strptime(end_date, '%Y-%m-%d')
         start_datetime = start_datetime.replace(hour=current_time.hour, minute=current_time.minute, second=current_time.second)
-        end_datetime = end_datetime.replace(hour=current_time.hour, minute=current_time.minute, second=current_time.second)
+        end_datetime = end_datetime.replace(hour=current_time.hour, minute=current_time.minute+1, second=current_time.second)
         formatted_start_date = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
         formatted_end_date = end_datetime.strftime('%Y-%m-%d %H:%M:%S')
         days_rented = (end_datetime - start_datetime).days
         price = days_rented * 2
+        if price == 0:
+            price = 1
         username = self.logged_user
         for movie in selected_movies:
             movie_id = movie['id']
@@ -769,16 +770,17 @@ class SimpleGUI(tk.Tk):
                 name = rent['name']
                 surname = rent['surname']
                 start_date = rent['start_date']
+                start_date_display = start_date.strftime('%Y-%m-%d %H:%M:%S')
                 end_date = rent['end_date']
+                end_date_display = end_date.strftime('%Y-%m-%d %H:%M:%S')
                 title = rent['movie_title']
                 price = rent['price']
-                end_datetime = datetime.strptime(end_date, '%Y-%m-%d %H:%M:%S')
                 current_datetime = datetime.now()
-                if end_datetime < current_datetime:
+                if end_date < current_datetime:
                     delayed = "Delayed"
                 else:
                     delayed = "On time"
-                row = "{:<50} | {:<50} | {:<100} | {:<50} | {:<50} | {:<5} | {:<15}".format(name, surname, title, start_date, end_date, price, delayed)
+                row = "{:<50} | {:<50} | {:<100} | {:<50} | {:<50} | {:<5} | {:<15}".format(name, surname, title, start_date_display, end_date_display, price, delayed)
                 self.listbox.insert(tk.END, row)
         else:
             self.listbox.insert(tk.END, "No rents found.")

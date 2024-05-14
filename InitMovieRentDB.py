@@ -1,8 +1,6 @@
-import json
-import sqlite3
+
 import psycopg2
-import random
-import bcrypt
+
 from datetime import datetime, timedelta
 
 # Connect to the database (or create it if it doesn't exist)
@@ -24,7 +22,7 @@ CREATE TABLE IF NOT EXISTS client (
     name VARCHAR(50) NOT NULL,
     surname VARCHAR(50) NOT NULL,
     username VARCHAR(50) UNIQUE NOT NULL,
-    password VARCHAR(255) NOT NULL,
+    password VARCHAR(512) NOT NULL,
     role VARCHAR(20),
     last_logged_in TIMESTAMP WITHOUT TIME ZONE
 );
@@ -205,6 +203,7 @@ cursor.execute("""
     CREATE TRIGGER increase_price_for_delayed_rentals
     AFTER INSERT ON activity_logs
     FOR EACH ROW
+    WHEN (NEW.activity_type = 'login') -- Trigger condition added
     EXECUTE FUNCTION increase_price_for_delayed_rentals();
 
 """)

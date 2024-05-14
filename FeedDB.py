@@ -45,8 +45,9 @@ def add_random_time(start_date_str, end_date_str):
 
 with open("raw_data.json", "r") as f:
     data = json.load(f)
+    password = "1234"
     for client in data["client"]:
-        hashed_password = bcrypt.hashpw(b"1234", bcrypt.gensalt())
+        hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode('utf-8')
         cursor.execute(
             """
             INSERT INTO client (name, surname, username, password, role)
