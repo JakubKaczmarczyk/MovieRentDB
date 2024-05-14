@@ -1,11 +1,14 @@
 import json
-import sqlite3
+import psycopg2
 import random
 import bcrypt
 from datetime import datetime, timedelta
 
 # Connect to the database (or create it if it doesn't exist)
-conn = sqlite3.connect("movie_rental.db", detect_types=sqlite3.PARSE_DECLTYPES)
+conn = psycopg2.connect(
+    dbname="movie_rental",
+    user="postgres",
+    password="1234")
 
 # Create a cursor object
 cursor = conn.cursor()
@@ -46,9 +49,9 @@ with open("raw_data.json", "r") as f:
         hashed_password = bcrypt.hashpw(b"1234", bcrypt.gensalt())
         cursor.execute(
             """
-         INSERT INTO client (name, surname, username, password, role)
-         VALUES (?, ?, ?, ?, ?)
-      """,
+            INSERT INTO client (name, surname, username, password, role)
+            VALUES (%s, %s, %s, %s, %s)
+            """,
             (
                 client["name"],
                 client["surname"],
@@ -58,41 +61,46 @@ with open("raw_data.json", "r") as f:
             ),
         )
 
+
     for actor in data["actor"]:
         cursor.execute(
             """
-         INSERT INTO actor (name, surname)
-         VALUES (?, ?)
-      """,
+            INSERT INTO actor (name, surname)
+            VALUES (%s, %s)
+            """,
             (actor["name"], actor["surname"]),
         )
+
 
     for director in data["director"]:
         cursor.execute(
             """
-         INSERT INTO director (name, surname)
-         VALUES (?, ?)
-      """,
+            INSERT INTO director (name, surname)
+            VALUES (%s, %s)
+            """,
             (director["name"], director["surname"]),
         )
+
 
     for producer in data["producer"]:
         cursor.execute(
             """
-         INSERT INTO producer (producer_name)
-         VALUES (?)
-      """,
+            INSERT INTO producer (producer_name)
+            VALUES (%s)
+            """,
             (producer["producer_name"],),
         )
+
 
     for gener in data["gener"]:
         cursor.execute(
             """
-         INSERT INTO gener (gener_name)
-         VALUES (?)
-      """,
+            INSERT INTO gener (gener_name)
+            VALUES (%s)
+            """,
             (gener["gener_name"],),
         )
+
 
     for movie in data["movie"]:
         title = movie["title"]
@@ -103,38 +111,42 @@ with open("raw_data.json", "r") as f:
 
         cursor.execute(
             """
-         INSERT INTO movie (title, year, producer_id, director_id, count)
-         VALUES (?, ?, ?, ?, ?)
-      """,
+            INSERT INTO movie (title, year, producer_id, director_id, count)
+            VALUES (%s, %s, %s, %s, %s)
+            """,
             (title, year, producer_id, director_id, count),
         )
 
+
+        # Pobierz movie_id ostatnio dodanego filmu
+        cursor.execute("SELECT MAX(id) FROM movie")
+        movie_id = cursor.fetchone()[0]  # Pobierz wartość pierwszej kolumny z wyniku zapytania
+
+
+        # Dodawanie aktorów do filmu
         num_actors = random.randint(3, 8)  # Random number of actors from 3 to 8
-        actor_ids = random.sample(
-            range(1, 101), num_actors
-        )  # Assuming actor IDs range from 1 to 100
+        actor_ids = random.sample(range(1, 101), num_actors)  # Assuming actor IDs range from 1 to 100
         for actor_id in actor_ids:
             cursor.execute(
                 """
-            INSERT INTO movie_actor (actor_id, movie_id)
-            VALUES (?, ?)
-         """,
-                (actor_id, cursor.lastrowid),
-            )  # cursor.lastrowid gets the ID of the last inserted movie
+                INSERT INTO movie_actor (actor_id, movie_id)
+                VALUES (%s, %s)
+                """,
+                (actor_id, movie_id),
+            )
 
         # Add random genres to the movie_gener table
         num_genres = random.randint(1, 3)  # Random number of genres from 1 to 3
-        genre_ids = random.sample(
-            range(1, 18), num_genres
-        )  # Assuming genre IDs range from 1 to 17
+        genre_ids = random.sample(range(1, 18), num_genres)  # Assuming genre IDs range from 1 to 17
         for genre_id in genre_ids:
             cursor.execute(
                 """
-            INSERT INTO movie_gener (gener_id, movie_id)
-            VALUES (?, ?)
-         """,
-                (genre_id, cursor.lastrowid),
-            )  # cursor.lastrowid gets the ID of the last inserted movie
+                INSERT INTO movie_gener (gener_id, movie_id)
+                VALUES (%s, %s)
+                """,
+                (genre_id, movie_id),
+            ) 
+
 
     # Add rentals to the rent table
 for rental in data["rent"]:
@@ -149,9 +161,9 @@ for rental in data["rent"]:
 
     cursor.execute(
         """
-      INSERT INTO rent (client_id, movie_id, start_date, end_date, price, is_active)
-      VALUES (?, ?, ?, ?, ?, ?)
-   """,
+        INSERT INTO rent (client_id, movie_id, start_date, end_date, price, is_active)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        """,
         (client_id, movie_id, start_time, end_time, price, is_active),
     )
 

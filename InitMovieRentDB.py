@@ -10,8 +10,7 @@ from datetime import datetime, timedelta
 conn = psycopg2.connect(
     dbname="movie_rental",
     user="postgres",
-    password="1234",
-    host="localhost")
+    password="1234")
 
 # Create a cursor object
 cursor = conn.cursor()
@@ -93,7 +92,7 @@ cursor.execute(
 CREATE TABLE IF NOT EXISTS movie (
    id SERIAL PRIMARY KEY,
    title VARCHAR,
-   year TIMESTAMP,
+   year INTEGER,
    producer_id INTEGER,
    director_id INTEGER,
    count INTEGER,
