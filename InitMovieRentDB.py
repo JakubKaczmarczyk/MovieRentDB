@@ -251,6 +251,22 @@ cursor.execute("""
 
 """)
 
+## Trigger to log activity when a new row is inserted into the movie table
+cursor.execute("""
+    CREATE OR REPLACE FUNCTION log_movie_insert_activity_function() RETURNS TRIGGER AS $$
+    BEGIN
+        -- Insert activity into activity_logs for the movie insertion operation
+        INSERT INTO activity_logs (activity_type, date)
+        VALUES ('movie_added', CURRENT_TIMESTAMP);
+        RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    CREATE TRIGGER log_movie_insert_activity
+    AFTER INSERT ON movie
+    FOR EACH ROW
+    EXECUTE FUNCTION log_movie_insert_activity_function();
+""")
 # Views
 cursor.execute("""
     CREATE OR REPLACE VIEW Active_Rental_Details AS
