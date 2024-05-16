@@ -801,6 +801,11 @@ class SimpleGUI(tk.Tk):
         # Field where date can be chosen from a calendar
         self.end_date_var = DateEntry(date_pattern='yyyy-mm-dd')
         self.end_date_var.pack()
+        self.end_date_var.bind("<<DateEntrySelected>>", self.update_rental_price)
+
+        self.price_label = tk.Label(self, text="Rental Price: $0")
+        self.price_label.pack()
+        self.update_rental_price()
 
         # Display selected movie titles
         selected_movies_text = "\n".join([movie["title"] for movie in selected_movies])
@@ -813,6 +818,15 @@ class SimpleGUI(tk.Tk):
         # Button to create rent
         self.create_rent_button = tk.Button(self, text="Create Rent", command=lambda: self.create_rent_action(selected_movies))
         self.create_rent_button.pack()
+
+    def update_rental_price(self, event=None):
+        start_date = datetime.strptime(self.start_date_var.get(), '%Y-%m-%d')
+        end_date = datetime.strptime(self.end_date_var.get(), '%Y-%m-%d')
+        difference = (end_date - start_date).days
+        price = 2 * difference
+        if price <= 0:
+            price = 1
+        self.price_label.config(text=f"Rental Price: ${price}")
 
     def create_rent_action(self, selected_movies):
         # Retrieve start and end dates
