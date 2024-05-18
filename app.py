@@ -278,61 +278,14 @@ def get_movies(
 
 def add_movie(title, year, producer_name, director_name, director_surname, count, genre_list, actor_list):
     try:
-        cursor.execute("SELECT id FROM producer WHERE producer_name = %s", (producer_name,))
-        producer_id = cursor.fetchone()
-        if producer_id is None:
-            # Dodanie nowego producenta, jeśli nie istnieje
-            cursor.execute("INSERT INTO producer (producer_name) VALUES (%s) RETURNING id", (producer_name,))
-            producer_id = cursor.fetchone()[0]
-        else:
-            producer_id = producer_id[0]
+        year = int(year)
+        count = int(count)
 
-        # Sprawdzenie istnienia reżysera w bazie danych
-        cursor.execute("SELECT id FROM director WHERE name = %s AND surname = %s", (director_name, director_surname))
-        director_id = cursor.fetchone()
-        if director_id is None:
-            # Dodanie nowego reżysera, jeśli nie istnieje
-            cursor.execute("INSERT INTO director (name, surname) VALUES (%s, %s) RETURNING id", (director_name, director_surname))
-            director_id = cursor.fetchone()[0]
-        else:
-            director_id = director_id[0]
-
-        cursor.execute("SELECT id FROM movie WHERE title = %s", (title,))
-        existing_movie_id = cursor.fetchone()
-        if existing_movie_id:
-            movie_id = existing_movie_id
-        else:
-            cursor.execute("""
-                INSERT INTO movie (title, year, producer_id, director_id, count)
-                VALUES (%s, %s, %s, %s, %s)
-                RETURNING id
-            """, (title, year, producer_id, director_id, count))
-            row = cursor.fetchone()
-            movie_id = row[0] if row else None
-
-        for genre in genre_list:
-            # Sprawdzenie istnienia gatunku w bazie danych
-            cursor.execute("SELECT id FROM gener WHERE gener_name = %s", (genre,))
-            genre_id = cursor.fetchone()
-            if genre_id is None:
-                cursor.execute("INSERT INTO gener (gener_name) VALUES (%s) RETURNING id", (genre,))
-                genre_id = cursor.fetchone()[0]
-
-            else:
-                genre_id = genre_id[0]
-            cursor.execute("INSERT INTO movie_gener (movie_id, gener_id) VALUES (%s, %s)", (movie_id, genre_id))
-
-        for actor in actor_list:
-            actor_name, actor_surname = actor
-            cursor.execute("SELECT id FROM actor WHERE name = %s AND surname = %s", (actor_name, actor_surname))
-            actor_id = cursor.fetchone()
-            if actor_id is None:
-                cursor.execute("INSERT INTO actor (name, surname) VALUES (%s, %s) RETURNING id", (actor_name, actor_surname))
-                actor_id = cursor.fetchone()[0]
-            else:
-                actor_id = actor_id[0]
-            cursor.execute("INSERT INTO movie_actor (movie_id, actor_id) VALUES (%s, %s)", (movie_id, actor_id))
-
+        actor_list = [[actor[0], actor[1]] for actor in actor_list]
+        cursor.execute(
+            "CALL add_movie(%s, %s, %s, %s, %s, %s, %s, %s)",
+            (title, year, producer_name, director_name, director_surname, count, genre_list, actor_list)
+        )
         conn.commit()
     except Exception as e:
         print("Wystąpił błąd podczas dodawania filmu:", str(e))

@@ -367,6 +367,86 @@ cursor.execute("""
 
 """)
 
+#Procedure
+cursor.execute("""
+CREATE OR REPLACE PROCEDURE add_movie(
+    IN p_title VARCHAR,
+    IN p_year INTEGER,
+    IN p_producer_name VARCHAR,
+    IN p_director_name VARCHAR,
+    IN p_director_surname VARCHAR,
+    IN p_count INTEGER,
+    IN p_genre_list TEXT[],
+    IN p_actor_list TEXT[][]
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_producer_id INT;
+    v_director_id INT;
+    v_movie_id INT;
+    v_genre_id INT;
+    v_actor_id INT;
+    v_actor_name TEXT;
+    v_actor_surname TEXT;
+BEGIN
+    -- Sprawdzenie i dodanie producenta
+    SELECT id INTO v_producer_id
+    FROM producer
+    WHERE producer_name = p_producer_name;
+    IF v_producer_id IS NULL THEN
+        INSERT INTO producer (producer_name) VALUES (p_producer_name) RETURNING id INTO v_producer_id;
+    END IF;
+
+    -- Sprawdzenie i dodanie reżysera
+    SELECT id INTO v_director_id
+    FROM director
+    WHERE name = p_director_name AND surname = p_director_surname;
+    IF v_director_id IS NULL THEN
+        INSERT INTO director (name, surname) VALUES (p_director_name, p_director_surname) RETURNING id INTO v_director_id;
+    END IF;
+
+    -- Sprawdzenie istnienia filmu i dodanie nowego filmu
+    SELECT id INTO v_movie_id
+    FROM movie
+    WHERE title = p_title;
+    IF v_movie_id IS NULL THEN
+        INSERT INTO movie (title, year, producer_id, director_id, count)
+        VALUES (p_title, p_year, v_producer_id, v_director_id, p_count)
+        RETURNING id INTO v_movie_id;
+    ELSE
+        -- Jeśli film już istnieje, przypisanie istniejącego ID
+        v_movie_id := v_movie_id;
+    END IF;
+
+    -- Dodanie gatunków
+    FOR i IN 1 .. array_length(p_genre_list, 1) LOOP
+        SELECT id INTO v_genre_id
+        FROM gener
+        WHERE gener_name = p_genre_list[i];
+        IF v_genre_id IS NULL THEN
+            INSERT INTO gener (gener_name) VALUES (p_genre_list[i]) RETURNING id INTO v_genre_id;
+        END IF;
+        INSERT INTO movie_gener (movie_id, gener_id) VALUES (v_movie_id, v_genre_id);
+    END LOOP;
+
+    -- Dodanie aktorów
+    FOR i IN 1 .. array_length(p_actor_list, 1) LOOP
+        v_actor_name := p_actor_list[i][1];
+        v_actor_surname := p_actor_list[i][2];
+
+        SELECT id INTO v_actor_id
+        FROM actor
+        WHERE name = v_actor_name AND surname = v_actor_surname;
+        IF v_actor_id IS NULL THEN
+            INSERT INTO actor (name, surname) VALUES (v_actor_name, v_actor_surname) RETURNING id INTO v_actor_id;
+        END IF;
+        INSERT INTO movie_actor (movie_id, actor_id) VALUES (v_movie_id, v_actor_id);
+    END LOOP;
+END;
+$$;
+
+""")
 
 # Commit the changes to save the trigger
 conn.commit()
