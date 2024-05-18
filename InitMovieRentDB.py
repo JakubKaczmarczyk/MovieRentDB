@@ -1,17 +1,39 @@
-
 import psycopg2
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
-from datetime import datetime, timedelta
+dbname = "movie_rental"
+user = "postgres"
+password = "1234"
+host = "localhost"
 
-# Connect to the database (or create it if it doesn't exist)
-#conn = sqlite3.connect("movie_rental.db", detect_types=sqlite3.PARSE_DECLTYPES)
 conn = psycopg2.connect(
-    dbname="movie_rental",
-    user="postgres",
-    password="1234")
+    dbname="postgres",
+    user=user,
+    password=password,
+    host=host
+)
 
-# Create a cursor object
+conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
 cursor = conn.cursor()
+
+cursor.execute(f"SELECT 1 FROM pg_database WHERE datname = '{dbname}'")
+exists = cursor.fetchone()
+
+if not exists:
+    cursor.execute(f"CREATE DATABASE {dbname}")
+
+cursor.close()
+conn.close()
+
+conn = psycopg2.connect(
+    dbname=dbname,
+    user=user,
+    password=password,
+    host=host
+)
+
+cursor = conn.cursor()
+
 
 ## SIMPLE TABLES ##
 # Done
