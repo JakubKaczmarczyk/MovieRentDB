@@ -470,6 +470,17 @@ $$;
 
 """)
 
+cursor.execute("""
+    CREATE OR REPLACE PROCEDURE delete_old_activity_logs()
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+        DELETE FROM activity_logs
+        WHERE date < CURRENT_TIMESTAMP - INTERVAL '1 hour';
+    END;
+    $$;
+""")
+
 # Commit the changes to save the trigger
 conn.commit()
 

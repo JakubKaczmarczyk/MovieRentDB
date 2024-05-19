@@ -325,6 +325,10 @@ def finish_selected_rents(user_rents):
     except Exception as e:
         print(f"An error occurred: {e}")
 
+def delete_logs():
+    cursor.execute("CALL delete_old_activity_logs()")
+    cursor.connection.commit()
+
 class SimpleGUI(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -663,7 +667,15 @@ class SimpleGUI(tk.Tk):
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         listbox.config(yscrollcommand=scrollbar.set)
 
+    def call_delete_logs(self):
+        delete_logs()
+        self.switch_to_view_logs()
+
     def fetch_logs(self):
+        self.delete_logs_button = tk.Button(
+            self, text="Delete 1 hour old logs", command=self.call_delete_logs
+        )
+        self.delete_logs_button.pack()
         activities = get_users_activity()
         listbox = tk.Listbox(self, width=100, height=20)
         if activities:
